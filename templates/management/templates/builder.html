@@ -1,0 +1,792 @@
+{% extends "base.html" %}
+
+{% block title %}Template Builder | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-[1400px] px-4 py-6">
+  <header class="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Template Builder</p>
+      <h1 class="text-2xl font-bold">{{ template.name }}</h1>
+      <p class="mt-1 text-xs font-semibold {% if template.status == 'ready' %}text-emerald-700{% else %}text-amber-700{% endif %}">
+        Status: <span id="template-status-label">{{ template.get_status_display }}</span>
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btn-full-preview" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Fullscreen Preview</button>
+      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-templates' %}">Back</a>
+      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-questions' %}">Question Bank</a>
+      <a class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white" href="{% url 'management-dashboard' %}">Dashboard</a>
+    </div>
+  </header>
+
+  <section class="grid gap-4 lg:grid-cols-[300px_1fr_340px]">
+    <aside class="rounded-xl bg-white p-4 shadow">
+      <h2 class="text-lg font-semibold">Questions</h2>
+      <p class="mt-1 text-xs text-slate-500">Drag a question into the canvas to create a node.</p>
+      <div class="mt-3 space-y-2">
+        {% for q in questions %}
+        <div draggable="true" data-question-id="{{ q.id }}" class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm">
+          <div class="font-semibold">{{ q.title }}</div>
+          <div class="text-xs uppercase text-slate-500">{{ q.get_question_type_display }}</div>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-500">No questions. Create questions first.</p>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <div class="rounded-xl bg-white p-2 shadow">
+      <div id="builder-canvas" class="relative h-[70vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
+        <svg id="link-layer" class="pointer-events-none absolute inset-0 h-full w-full"></svg>
+      </div>
+    </div>
+
+    <aside class="rounded-xl bg-white p-4 shadow">
+      <h2 class="text-lg font-semibold">Inspector</h2>
+      <p class="mt-1 text-xs text-slate-500">Select node to configure transitions and branch endings.</p>
+      <p id="connect-status" class="mt-2 text-xs font-semibold text-blue-700"></p>
+      <form id="node-form" class="mt-4 space-y-3">
+        <div>
+          <label class="mb-1 block text-sm font-medium">Node Question</label>
+          <p id="f-node-id" class="mb-1 text-xs font-semibold text-slate-500"></p>
+          <p id="f-node-forced" class="mb-1 hidden text-xs font-semibold text-emerald-700">Forced start node</p>
+          <div id="f-node-question" class="rounded border border-slate-300 bg-slate-50 px-2 py-2 text-sm"></div>
+        </div>
+
+        <div id="block-next">
+          <label class="mb-1 block text-sm font-medium">Next Node</label>
+          <select id="f-next" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
+        </div>
+        <label id="block-end-next" class="flex items-center gap-2 text-sm">
+          <input id="f-end-next" type="checkbox" />
+          This node ends the survey
+        </label>
+
+        <div id="block-yes">
+          <label class="mb-1 block text-sm font-medium">YES -> Node</label>
+          <select id="f-yes" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
+        </div>
+        <label id="block-end-yes" class="flex items-center gap-2 text-sm">
+          <input id="f-end-yes" type="checkbox" />
+          YES branch ends the survey
+        </label>
+        <div id="block-no">
+          <label class="mb-1 block text-sm font-medium">NO -> Node</label>
+          <select id="f-no" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
+        </div>
+        <label id="block-end-no" class="flex items-center gap-2 text-sm">
+          <input id="f-end-no" type="checkbox" />
+          NO branch ends the survey
+        </label>
+
+        <div class="flex gap-2 pt-2">
+          <button id="btn-save-node" type="button" class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Save Draft</button>
+          <button id="btn-save-ready" type="button" class="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Save & Ready</button>
+          <button id="btn-delete-node" type="button" class="hidden rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">Delete</button>
+        </div>
+      </form>
+      <p id="inspector-empty" class="mt-4 text-sm text-slate-500">No node selected.</p>
+    </aside>
+  </section>
+</main>
+<div id="save-toast" class="pointer-events-none fixed right-6 top-6 z-50 hidden rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-xl">
+  Draft Saved
+</div>
+<div id="validation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+  <div class="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl">
+    <h2 class="text-xl font-semibold text-red-700">Template Validation Errors</h2>
+    <p class="mt-2 text-sm text-slate-700">Fix the following issues before marking this template as Ready:</p>
+    <ul id="validation-errors" class="mt-4 max-h-72 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-slate-800"></ul>
+    <div class="mt-6 flex justify-end">
+      <button type="button" id="validation-close" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Close</button>
+    </div>
+  </div>
+</div>
+<div id="fullscreen-preview-modal" class="fixed inset-0 z-50 hidden bg-slate-900/90 p-4">
+  <div class="flex h-full flex-col rounded-xl bg-slate-100 p-3">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Template Tree Preview</h2>
+      <button id="fullscreen-preview-close" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Close</button>
+    </div>
+    <div id="fullscreen-preview-viewport" class="relative flex-1 overflow-auto rounded-lg border border-slate-300 bg-white p-4">
+      <div id="fullscreen-preview-stage" class="relative"></div>
+    </div>
+  </div>
+</div>
+
+<form style="display:none">{% csrf_token %}</form>
+{{ nodes_data|json_script:"nodes-data" }}
+<script>
+  const TEMPLATE_ID = {{ template.id }};
+  const DATA_URL = "{% url 'management-template-builder-data' template.id %}";
+  const CREATE_URL = "{% url 'management-template-node-create' template.id %}";
+  const UPDATE_URL_TMPL = "{% url 'management-template-node-update' template.id 0 %}";
+  const DELETE_URL_TMPL = "{% url 'management-template-node-delete' template.id 0 %}";
+  const SAVE_READY_URL = "{% url 'management-template-save-ready' template.id %}";
+</script>
+<script>
+  (function () {
+    const canvas = document.getElementById("builder-canvas");
+    const svg = document.getElementById("link-layer");
+    const questionsDom = Array.from(document.querySelectorAll("[data-question-id]"));
+    const previewModal = document.getElementById("fullscreen-preview-modal");
+    const previewViewport = document.getElementById("fullscreen-preview-viewport");
+    const previewStage = document.getElementById("fullscreen-preview-stage");
+    const nodes = new Map();
+    let startNodeId = null;
+    let selectedNodeId = null;
+    let dragNodeId = null;
+    let dragOffset = { x: 0, y: 0 };
+    let connectMode = null;
+    let pointerCanvas = { x: 0, y: 0 };
+    let saveTimer = null;
+    let toastTimer = null;
+
+    function getCsrfToken() {
+      const name = "csrftoken=";
+      const parts = document.cookie.split(";");
+      for (const part of parts) {
+        const v = part.trim();
+        if (v.startsWith(name)) return v.substring(name.length);
+      }
+      return "";
+    }
+
+    function postForm(url, data) {
+      return fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCsrfToken(), "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(data),
+      }).then(async (r) => {
+        const payload = await r.json().catch(() => ({}));
+        if (!r.ok) throw payload;
+        return payload;
+      });
+    }
+
+    function updateUrl(nodeId) {
+      return UPDATE_URL_TMPL.replace("/0/update/", `/${nodeId}/update/`);
+    }
+
+    function deleteUrl(nodeId) {
+      return DELETE_URL_TMPL.replace("/0/delete/", `/${nodeId}/delete/`);
+    }
+
+    function renderNodes() {
+      canvas.querySelectorAll(".node-card").forEach((n) => n.remove());
+      for (const node of nodes.values()) {
+        const el = document.createElement("div");
+        el.className =
+          "node-card absolute w-56 rounded-lg border p-2 shadow " +
+          (node.id === selectedNodeId ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white");
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+        el.dataset.nodeId = String(node.id);
+        el.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
+              <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
+            </div>
+            ${node.is_forced_start ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">FORCED START</span>' : node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
+          </div>
+          <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
+          <div class="mt-2 flex flex-wrap gap-1">
+            ${node.question_type === "yes_no"
+              ? '<button type="button" data-connect="yes" class="connect-btn rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">YES</button><button type="button" data-connect="no" class="connect-btn rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">NO</button>'
+              : '<button type="button" data-connect="next" class="connect-btn rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-800">NEXT</button>'}
+          </div>
+        `;
+        el.addEventListener("click", () => {
+          if (connectMode) {
+            if (connectMode.fromId === node.id) {
+              connectMode = null;
+              updateConnectStatus();
+              render();
+              return;
+            }
+            connectToNode(node.id);
+            return;
+          }
+          selectedNodeId = node.id;
+          render();
+          fillInspector();
+        });
+        el.addEventListener("mousedown", (ev) => {
+          if (ev.button !== 0) return;
+          const rect = canvas.getBoundingClientRect();
+          dragNodeId = node.id;
+          dragOffset.x = ev.clientX - rect.left - node.x + canvas.scrollLeft;
+          dragOffset.y = ev.clientY - rect.top - node.y + canvas.scrollTop;
+        });
+        el.querySelectorAll(".connect-btn").forEach((btn) => {
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const edge = btn.dataset.connect;
+            connectMode = { fromId: node.id, edge };
+            updateConnectStatus();
+            render();
+          });
+        });
+        canvas.appendChild(el);
+      }
+    }
+
+    function nodeCenter(node) {
+      return { x: node.x + 112, y: node.y + 34 };
+    }
+
+    function drawLine(fromNode, toNode, color, label) {
+      const a = nodeCenter(fromNode);
+      const b = nodeCenter(toNode);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", b.x);
+      line.setAttribute("y2", b.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      svg.appendChild(line);
+
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", (a.x + b.x) / 2);
+      text.setAttribute("y", (a.y + b.y) / 2 - 4);
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", color);
+      text.textContent = label;
+      svg.appendChild(text);
+    }
+
+    function drawPointerLine(fromNode, x, y, color, label) {
+      const a = nodeCenter(fromNode);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", x);
+      line.setAttribute("y2", y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-dasharray", "5,5");
+      svg.appendChild(line);
+
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", (a.x + x) / 2);
+      text.setAttribute("y", (a.y + y) / 2 - 4);
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", color);
+      text.textContent = label;
+      svg.appendChild(text);
+    }
+
+    function buildFullscreenPreview() {
+      if (!previewStage) return;
+      previewStage.innerHTML = "";
+      if (!nodes.size) {
+        const empty = document.createElement("p");
+        empty.className = "text-sm text-slate-500";
+        empty.textContent = "No nodes to preview.";
+        previewStage.appendChild(empty);
+        previewStage.style.transform = "scale(1)";
+        return;
+      }
+
+      const cardWidth = 224;
+      const cardHeight = 92;
+      const pad = 20;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      for (const node of nodes.values()) {
+        minX = Math.min(minX, node.x);
+        minY = Math.min(minY, node.y);
+        maxX = Math.max(maxX, node.x + cardWidth);
+        maxY = Math.max(maxY, node.y + cardHeight);
+      }
+
+      const stageWidth = Math.max(1, maxX - minX + pad * 2);
+      const stageHeight = Math.max(1, maxY - minY + pad * 2);
+      previewStage.style.width = `${stageWidth}px`;
+      previewStage.style.height = `${stageHeight}px`;
+
+      const psvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      psvg.classList.add("pointer-events-none", "absolute", "inset-0");
+      psvg.setAttribute("width", String(stageWidth));
+      psvg.setAttribute("height", String(stageHeight));
+      psvg.setAttribute("viewBox", `0 0 ${stageWidth} ${stageHeight}`);
+      previewStage.appendChild(psvg);
+
+      function adjustedCenter(node) {
+        return {
+          x: node.x - minX + pad + 112,
+          y: node.y - minY + pad + 32,
+        };
+      }
+
+      function drawPreviewEdge(fromNode, toNode, color, label) {
+        const a = adjustedCenter(fromNode);
+        const b = adjustedCenter(toNode);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", "2");
+        psvg.appendChild(line);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", String((a.x + b.x) / 2));
+        text.setAttribute("y", String((a.y + b.y) / 2 - 4));
+        text.setAttribute("font-size", "10");
+        text.setAttribute("fill", color);
+        text.textContent = label;
+        psvg.appendChild(text);
+      }
+
+      for (const node of nodes.values()) {
+        if (node.question_type === "yes_no") {
+          if (node.yes_id && nodes.has(node.yes_id)) {
+            drawPreviewEdge(node, nodes.get(node.yes_id), "#16a34a", "YES");
+          }
+          if (node.no_id && nodes.has(node.no_id)) {
+            drawPreviewEdge(node, nodes.get(node.no_id), "#dc2626", "NO");
+          }
+        } else if (node.next_id && nodes.has(node.next_id)) {
+          drawPreviewEdge(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+        }
+      }
+
+      for (const node of nodes.values()) {
+        const card = document.createElement("div");
+        card.className = "absolute w-56 rounded-lg border border-slate-300 bg-white p-2 shadow";
+        card.style.left = `${node.x - minX + pad}px`;
+        card.style.top = `${node.y - minY + pad}px`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
+              <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
+            </div>
+            ${node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
+          </div>
+          <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
+        `;
+        previewStage.appendChild(card);
+      }
+
+    }
+
+    function openFullscreenPreview() {
+      if (!previewModal) return;
+      previewModal.classList.remove("hidden");
+      previewModal.classList.add("block");
+      buildFullscreenPreview();
+      if (previewViewport) {
+        previewViewport.scrollTop = 0;
+        previewViewport.scrollLeft = 0;
+      }
+    }
+
+    function closeFullscreenPreview() {
+      if (!previewModal) return;
+      previewModal.classList.add("hidden");
+      previewModal.classList.remove("block");
+    }
+
+    function renderLinks() {
+      svg.innerHTML = "";
+      for (const node of nodes.values()) {
+        if (node.question_type === "yes_no") {
+          if (node.yes_id && nodes.has(node.yes_id)) {
+            drawLine(node, nodes.get(node.yes_id), "#16a34a", "YES");
+          }
+          if (node.no_id && nodes.has(node.no_id)) {
+            drawLine(node, nodes.get(node.no_id), "#dc2626", "NO");
+          }
+        } else if (node.next_id && nodes.has(node.next_id)) {
+          drawLine(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+        }
+      }
+      if (connectMode && nodes.has(connectMode.fromId)) {
+        const from = nodes.get(connectMode.fromId);
+        const color = connectMode.edge === "yes" ? "#16a34a" : connectMode.edge === "no" ? "#dc2626" : "#0284c7";
+        drawPointerLine(from, pointerCanvas.x, pointerCanvas.y, color, `CONNECT ${connectMode.edge.toUpperCase()}`);
+      }
+    }
+
+    function updateConnectStatus() {
+      const box = document.getElementById("connect-status");
+      if (!connectMode) {
+        box.textContent = "";
+        return;
+      }
+      box.textContent = `Connect mode: node #${connectMode.fromId} (${connectMode.edge.toUpperCase()}) -> click target node (ESC to cancel)`;
+    }
+
+    function connectToNode(targetId) {
+      if (!connectMode) return;
+      const source = nodes.get(connectMode.fromId);
+      const target = nodes.get(targetId);
+      if (!source) return;
+      if (!target) return;
+      if (target.is_forced_start) {
+        connectMode = null;
+        updateConnectStatus();
+        render();
+        return;
+      }
+      if (connectMode.edge === "next") {
+        source.next_id = targetId;
+        source.ends_survey = false;
+      } else if (connectMode.edge === "yes") {
+        source.yes_id = targetId;
+        source.end_on_yes = false;
+      } else if (connectMode.edge === "no") {
+        source.no_id = targetId;
+        source.end_on_no = false;
+      }
+      normalizeNodeState(source);
+      const payload = nodePayload(source);
+      connectMode = null;
+      updateConnectStatus();
+      render();
+      postForm(updateUrl(source.id), payload).then(refreshFromServer).then(setCanvasSize);
+    }
+
+    function render() {
+      renderNodes();
+      renderLinks();
+      document.getElementById("inspector-empty").style.display = selectedNodeId ? "none" : "";
+      document.getElementById("node-form").style.display = "";
+      const deleteBtn = document.getElementById("btn-delete-node");
+      deleteBtn.classList.toggle("hidden", !selectedNodeId);
+    }
+
+    function fillTargetOptions(selectEl, currentNodeId, selectedValue) {
+      selectEl.innerHTML = '<option value="">-- end --</option>';
+      for (const n of nodes.values()) {
+        if (n.id === currentNodeId) continue;
+        if (n.is_forced_start) continue;
+        const opt = document.createElement("option");
+        opt.value = String(n.id);
+        opt.textContent = `#${n.id} ${n.question_title.slice(0, 40)}`;
+        if (selectedValue && Number(selectedValue) === n.id) opt.selected = true;
+        selectEl.appendChild(opt);
+      }
+    }
+
+    function fillInspector() {
+      const node = nodes.get(selectedNodeId);
+      if (!node) return;
+      const questionLabel = document.getElementById("f-node-question");
+      const nodeIdLabel = document.getElementById("f-node-id");
+      const nextField = document.getElementById("f-next");
+      const yesField = document.getElementById("f-yes");
+      const noField = document.getElementById("f-no");
+      const endNextField = document.getElementById("f-end-next");
+      const endYesField = document.getElementById("f-end-yes");
+      const endNoField = document.getElementById("f-end-no");
+      const forcedLabel = document.getElementById("f-node-forced");
+      const deleteBtn = document.getElementById("btn-delete-node");
+      const isForcedStart = !!node.is_forced_start;
+
+      nodeIdLabel.textContent = `Node #${node.id}`;
+      questionLabel.textContent = node.question_title;
+      fillTargetOptions(nextField, node.id, node.next_id);
+      fillTargetOptions(yesField, node.id, node.yes_id);
+      fillTargetOptions(noField, node.id, node.no_id);
+      endNextField.checked = !!node.ends_survey;
+      endYesField.checked = !!node.end_on_yes;
+      endNoField.checked = !!node.end_on_no;
+      forcedLabel.classList.toggle("hidden", !isForcedStart);
+      deleteBtn.classList.remove("hidden");
+      deleteBtn.disabled = isForcedStart;
+      deleteBtn.classList.toggle("opacity-50", isForcedStart);
+      deleteBtn.classList.toggle("cursor-not-allowed", isForcedStart);
+
+      const isYesNo = node.question_type === "yes_no";
+      document.getElementById("block-next").style.display = isYesNo ? "none" : "";
+      document.getElementById("block-end-next").style.display = isYesNo ? "none" : "flex";
+      document.getElementById("block-yes").style.display = isYesNo ? "" : "none";
+      document.getElementById("block-end-yes").style.display = isYesNo ? "flex" : "none";
+      document.getElementById("block-no").style.display = isYesNo ? "" : "none";
+      document.getElementById("block-end-no").style.display = isYesNo ? "flex" : "none";
+      nextField.disabled = !!node.ends_survey || isYesNo;
+      yesField.disabled = !isYesNo || !!node.end_on_yes;
+      noField.disabled = !isYesNo || !!node.end_on_no;
+    }
+
+    function normalizeNodeState(node) {
+      const isYesNo = node.question_type === "yes_no";
+      if (isYesNo) {
+        node.next_id = null;
+        node.ends_survey = false;
+      } else {
+        node.yes_id = null;
+        node.no_id = null;
+        node.end_on_yes = false;
+        node.end_on_no = false;
+      }
+    }
+
+    function nodePayload(node) {
+      return {
+        next_id: node.next_id ? String(node.next_id) : "",
+        yes_id: node.yes_id ? String(node.yes_id) : "",
+        no_id: node.no_id ? String(node.no_id) : "",
+        ends_survey: node.ends_survey ? "true" : "false",
+        end_on_yes: node.end_on_yes ? "true" : "false",
+        end_on_no: node.end_on_no ? "true" : "false",
+      };
+    }
+
+    function showToast(message, tone = "success") {
+      const toast = document.getElementById("save-toast");
+      toast.textContent = message;
+      toast.classList.remove("bg-emerald-600", "bg-amber-500", "bg-red-600");
+      if (tone === "warning") {
+        toast.classList.add("bg-amber-500");
+      } else if (tone === "error") {
+        toast.classList.add("bg-red-600");
+      } else {
+        toast.classList.add("bg-emerald-600");
+      }
+      toast.classList.remove("hidden");
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 3000);
+    }
+
+    function setStatusLabel(rawStatus) {
+      const label = document.getElementById("template-status-label");
+      if (!label) return;
+      if (!rawStatus) return;
+      label.textContent = rawStatus === "ready" ? "Ready" : "Draft";
+      label.parentElement.classList.remove("text-emerald-700", "text-amber-700");
+      label.parentElement.classList.add(rawStatus === "ready" ? "text-emerald-700" : "text-amber-700");
+    }
+
+    function showValidationErrors(errors) {
+      const modal = document.getElementById("validation-modal");
+      const list = document.getElementById("validation-errors");
+      list.innerHTML = "";
+      errors.forEach((err) => {
+        const li = document.createElement("li");
+        li.textContent = err;
+        list.appendChild(li);
+      });
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeValidationModal() {
+      const modal = document.getElementById("validation-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function saveSelectedNode() {
+      if (!selectedNodeId) return Promise.resolve();
+      const node = nodes.get(selectedNodeId);
+      if (!node) return Promise.resolve();
+      normalizeNodeState(node);
+      const payload = nodePayload(node);
+      return postForm(updateUrl(selectedNodeId), payload);
+    }
+
+    function applyInspectorPreview() {
+      const node = nodes.get(selectedNodeId);
+      if (!node) return;
+
+      const nextField = document.getElementById("f-next");
+      const yesField = document.getElementById("f-yes");
+      const noField = document.getElementById("f-no");
+      const endNextField = document.getElementById("f-end-next");
+      const endYesField = document.getElementById("f-end-yes");
+      const endNoField = document.getElementById("f-end-no");
+      if (node.question_type === "yes_no") {
+        node.next_id = null;
+        node.ends_survey = false;
+        node.yes_id = yesField.value ? Number(yesField.value) : null;
+        node.no_id = noField.value ? Number(noField.value) : null;
+        node.end_on_yes = endYesField.checked;
+        node.end_on_no = endNoField.checked;
+      } else {
+        node.next_id = nextField.value ? Number(nextField.value) : null;
+        node.ends_survey = endNextField.checked;
+        node.yes_id = null;
+        node.no_id = null;
+        node.end_on_yes = false;
+        node.end_on_no = false;
+      }
+      normalizeNodeState(node);
+
+      if (node.is_forced_start) {
+        startNodeId = node.id;
+      }
+
+      render();
+      fillInspector();
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveSelectedNode();
+      }, 280);
+    }
+
+    function refreshFromServer() {
+      return fetch(DATA_URL)
+        .then((r) => r.json())
+        .then((data) => {
+          nodes.clear();
+          startNodeId = data.start_node_id;
+          setStatusLabel(data.status);
+          for (const n of data.nodes) nodes.set(n.id, n);
+          if (selectedNodeId && !nodes.has(selectedNodeId)) selectedNodeId = null;
+          render();
+          if (selectedNodeId) fillInspector();
+        });
+    }
+
+    function setCanvasSize() {
+      let maxX = 1200;
+      let maxY = 700;
+      for (const n of nodes.values()) {
+        maxX = Math.max(maxX, n.x + 300);
+        maxY = Math.max(maxY, n.y + 150);
+      }
+      svg.style.width = `${maxX}px`;
+      svg.style.height = `${maxY}px`;
+      svg.setAttribute("viewBox", `0 0 ${maxX} ${maxY}`);
+    }
+
+    questionsDom.forEach((el) => {
+      el.addEventListener("dragstart", (ev) => ev.dataTransfer.setData("question-id", el.dataset.questionId));
+    });
+
+    canvas.addEventListener("dragover", (ev) => ev.preventDefault());
+    canvas.addEventListener("mousemove", (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      pointerCanvas.x = Math.round(ev.clientX - rect.left + canvas.scrollLeft);
+      pointerCanvas.y = Math.round(ev.clientY - rect.top + canvas.scrollTop);
+      if (connectMode) renderLinks();
+    });
+    canvas.addEventListener("drop", (ev) => {
+      ev.preventDefault();
+      const questionId = ev.dataTransfer.getData("question-id");
+      if (!questionId) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.max(20, Math.round(ev.clientX - rect.left + canvas.scrollLeft - 100));
+      const y = Math.max(20, Math.round(ev.clientY - rect.top + canvas.scrollTop - 30));
+      postForm(CREATE_URL, { question_id: questionId, x, y }).then(refreshFromServer).then(setCanvasSize);
+    });
+
+    window.addEventListener("mousemove", (ev) => {
+      if (!dragNodeId) return;
+      const node = nodes.get(dragNodeId);
+      if (!node) return;
+      const rect = canvas.getBoundingClientRect();
+      node.x = Math.max(10, Math.round(ev.clientX - rect.left + canvas.scrollLeft - dragOffset.x));
+      node.y = Math.max(10, Math.round(ev.clientY - rect.top + canvas.scrollTop - dragOffset.y));
+      render();
+      setCanvasSize();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!dragNodeId) return;
+      const node = nodes.get(dragNodeId);
+      const nodeId = dragNodeId;
+      dragNodeId = null;
+      postForm(updateUrl(nodeId), { x: node.x, y: node.y });
+    });
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && connectMode) {
+        connectMode = null;
+        updateConnectStatus();
+        render();
+      }
+      if (ev.key === "Escape") {
+        closeValidationModal();
+        closeFullscreenPreview();
+      }
+    });
+    document.getElementById("btn-full-preview").addEventListener("click", openFullscreenPreview);
+    document.getElementById("fullscreen-preview-close").addEventListener("click", closeFullscreenPreview);
+    previewModal.addEventListener("click", (ev) => {
+      if (ev.target === previewModal) closeFullscreenPreview();
+    });
+    document.getElementById("validation-close").addEventListener("click", closeValidationModal);
+    document.getElementById("validation-modal").addEventListener("click", (ev) => {
+      if (ev.target.id === "validation-modal") closeValidationModal();
+    });
+
+    document.getElementById("btn-save-node").addEventListener("click", () => {
+      if (!selectedNodeId) {
+        showToast("Draft Saved", "warning");
+        return;
+      }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      saveSelectedNode().then(() => {
+        showToast("Draft Saved", "warning");
+        setStatusLabel("draft");
+        return refreshFromServer();
+      }).then(setCanvasSize);
+    });
+
+    document.getElementById("btn-save-ready").addEventListener("click", () => {
+      const finalize = () =>
+        postForm(SAVE_READY_URL, {})
+          .then(() => {
+            showToast("Template is survey-ready");
+            setStatusLabel("ready");
+            return refreshFromServer();
+          })
+          .then(setCanvasSize)
+          .catch((payload) => {
+            const errors = payload && Array.isArray(payload.errors) ? payload.errors : ["Validation failed."];
+            setStatusLabel("draft");
+            showValidationErrors(errors);
+          });
+
+      if (!selectedNodeId) {
+        finalize();
+        return;
+      }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      saveSelectedNode().then(finalize);
+    });
+
+    document.getElementById("btn-delete-node").addEventListener("click", () => {
+      if (!selectedNodeId) return;
+      if (!confirm("Delete selected node?")) return;
+      postForm(deleteUrl(selectedNodeId), {}).then(() => {
+        selectedNodeId = null;
+        return refreshFromServer();
+      }).then(setCanvasSize);
+    });
+
+    const initial = JSON.parse(document.getElementById("nodes-data").textContent);
+    for (const n of initial) nodes.set(n.id, n);
+    startNodeId = initial.find((n) => n.is_start)?.id || null;
+    render();
+    setCanvasSize();
+    updateConnectStatus();
+
+    ["f-next", "f-yes", "f-no", "f-end-next", "f-end-yes", "f-end-no"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", applyInspectorPreview);
+    });
+  })();
+</script>
+{% endblock %}

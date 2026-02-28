@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Ankieta {{ session.customer.company_name }}{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+  <section class="rounded-2xl bg-white p-6 shadow-lg sm:p-8">
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Ankiety Urban</p>
+    <h1 class="mt-2 text-2xl font-bold sm:text-3xl">Ankieta {{ session.customer.company_name }}</h1>
+    <p class="mt-3 text-sm text-slate-500">Please complete all questions to submit the survey.</p>
+    <p class="mt-1 text-sm text-slate-500">Status: {{ session.get_status_display }}</p>
+  </section>
+
+  <section class="mt-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8">
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+      <div>
+        <h2 class="text-lg font-semibold">{{ question.title }}</h2>
+        {% if question.help_text %}
+          <p class="mt-1 text-sm text-slate-500">{{ question.help_text }}</p>
+        {% endif %}
+        {% if form.answer.errors %}
+          <p class="mt-2 text-sm text-red-700">{{ form.answer.errors|join:", " }}</p>
+        {% endif %}
+      </div>
+
+      <div class="space-y-2">
+        {{ form.answer }}
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700" type="submit" name="action" value="next">
+          Continue
+        </button>
+      </div>
+    </form>
+  </section>
+</main>
+{% endblock %}

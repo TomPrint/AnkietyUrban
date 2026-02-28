@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Question Detail | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-6xl px-6 py-10">
+  <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Question Detail</p>
+      <h1 class="mt-2 text-3xl font-bold">{{ question.title }}</h1>
+      <p class="mt-2 text-sm text-slate-600">
+        Type: <span class="font-semibold">{{ question.get_question_type_display }}</span>
+        | Required: <span class="font-semibold">{% if question.required %}Yes{% else %}No{% endif %}</span>
+      </p>
+    </div>
+    <div class="flex gap-3">
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-questions' %}">Back to Questions</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-question-edit' question.id %}">Edit</a>
+    </div>
+  </header>
+
+  <section class="mt-8 grid gap-4 sm:grid-cols-3">
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Assigned Templates</p>
+      <p class="mt-2 text-3xl font-bold">{{ templates_count }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">All Survey Sessions</p>
+      <p class="mt-2 text-3xl font-bold">{{ sessions_count }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Active Survey Links</p>
+      <p class="mt-2 text-3xl font-bold text-emerald-700">{{ active_sessions_count }}</p>
+    </article>
+  </section>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Assigned to Templates</h2>
+    <div class="mt-4 overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="text-slate-500">
+          <tr>
+            <th class="py-2">Template</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in templates %}
+          <tr class="border-t border-slate-200">
+            <td class="py-2">{{ t.name }}</td>
+            <td class="py-2">{{ t.get_status_display }}</td>
+            <td class="py-2">
+              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-builder' t.id %}">Open Builder</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="py-4 text-slate-500">This question is not assigned to any template yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Survey Sessions Using This Question</h2>
+    <p class="mt-2 text-sm text-slate-500">Latest 50 sessions.</p>
+    <div class="mt-4 overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="text-slate-500">
+          <tr>
+            <th class="py-2">Customer</th>
+            <th class="py-2">Template</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Link</th>
+            <th class="py-2">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr class="border-t border-slate-200">
+            <td class="py-2">{{ s.customer.company_name }}</td>
+            <td class="py-2">{{ s.template.name }}</td>
+            <td class="py-2">{{ s.get_status_display }}</td>
+            <td class="py-2">
+              {% if s.is_link_active %}
+                <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Active</span>
+              {% else %}
+                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="py-2">{{ s.updated_at }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="py-4 text-slate-500">No survey sessions use this question yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

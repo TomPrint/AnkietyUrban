@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Link Inactive | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+  <section class="rounded-2xl bg-white p-8 text-center shadow-lg">
+    <h1 class="text-2xl font-bold">Survey link is inactive</h1>
+    <p class="mt-3 text-slate-600">
+      This survey link has been deactivated by management.
+    </p>
+    <p class="mt-1 text-sm text-slate-500">
+      Company: {{ session.customer.company_name }}
+    </p>
+  </section>
+</main>
+{% endblock %}

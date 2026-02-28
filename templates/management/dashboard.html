@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-6xl px-6 py-10">
+  <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-lg md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Ankiety Urban</p>
+      <h1 class="mt-2 text-3xl font-bold">Management Dashboard</h1>
+    </div>
+    <div class="flex gap-3">
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-questions' %}">Question Bank</a>
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-templates' %}">Template Builder</a>
+    </div>
+  </header>
+
+  <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Customers</p>
+      <p class="mt-2 text-3xl font-bold">{{ customers_count }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Question Bank</p>
+      <p class="mt-2 text-3xl font-bold">{{ questions_count }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Templates</p>
+      <p class="mt-2 text-3xl font-bold">{{ templates_count }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Open</p>
+      <p class="mt-2 text-3xl font-bold text-emerald-700">{{ sessions_open }}</p>
+    </article>
+  </section>
+
+  <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Saved Again</p>
+      <p class="mt-2 text-3xl font-bold text-amber-600">{{ sessions_saved_again }}</p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Closed</p>
+      <p class="mt-2 text-3xl font-bold text-slate-800">{{ sessions_closed }}</p>
+    </article>
+  </section>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Recent survey sessions</h2>
+    <div class="mt-4 overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="text-slate-500">
+          <tr>
+            <th class="py-2">Customer</th>
+            <th class="py-2">Template</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Saved Again</th>
+            <th class="py-2">Survey Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for session in latest_sessions %}
+          <tr class="border-t border-slate-200">
+            <td class="py-2">{{ session.customer.company_name }}</td>
+            <td class="py-2">{{ session.template.name }}</td>
+            <td class="py-2">{{ session.get_status_display }}</td>
+            <td class="py-2">{{ session.saved_again_count }}</td>
+            <td class="py-2"><a class="text-blue-700 underline" href="{% url 'survey-by-token' session.token %}">Open</a></td>
+          </tr>
+          {% empty %}
+          <tr><td class="py-4 text-slate-500" colspan="5">No sessions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

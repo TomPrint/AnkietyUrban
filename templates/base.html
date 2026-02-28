@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Ankiety Urban{% endblock %}</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Public+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'css/uv-theme.css' %}" />
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    {% if user.is_authenticated and request.resolver_match.url_name != 'login' %}
+    <nav class="uv-nav border-b">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <a href="{% if user.is_authenticated %}{% url 'management-dashboard' %}{% else %}{% url 'login' %}{% endif %}" class="flex items-center gap-3">
+          <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-20 w-auto" />
+          <span class="uv-brand text-xs sm:text-sm">Ankiety</span>
+        </a>
+        {% if user.is_authenticated %}
+        <div class="flex items-center gap-2 sm:gap-3">
+          <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Dashboard</a>
+          <a class="uv-nav-link" href="{% url 'management-customers' %}">Customers</a>
+          <a class="uv-nav-link" href="{% url 'management-assignments' %}">Survey</a>
+          <a class="uv-nav-link" href="{% url 'management-questions' %}">Questions</a>
+          <a class="uv-nav-link" href="{% url 'management-templates' %}">Templates</a>
+          <form id="logout-form" method="post" action="{% url 'logout' %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="uv-nav-link uv-nav-link-logout">Logout</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+    {% endif %}
+    {% if messages %}
+    <div class="mx-auto mt-4 max-w-6xl px-4 sm:px-6">
+      {% for message in messages %}
+        <div class="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    {% if user.is_authenticated and request.resolver_match.url_name != 'login' %}
+    <script>
+      (function () {
+        const idleMs = Number("{{ IDLE_LOGOUT_SECONDS|default:900 }}") * 1000;
+        const logoutForm = document.getElementById("logout-form");
+        let timer = null;
+
+        function doLogout() {
+          if (logoutForm) logoutForm.submit();
+        }
+
+        function resetIdleTimer() {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => {
+            doLogout();
+          }, idleMs);
+        }
+
+        ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach((eventName) => {
+          window.addEventListener(eventName, resetIdleTimer, { passive: true });
+        });
+        resetIdleTimer();
+      })();
+    </script>
+    {% endif %}
+  </body>
+</html>

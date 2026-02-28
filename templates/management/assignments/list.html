@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Survey | Ankiety Urban{% endblock %}
+
+{% block content %}
+<style>
+  .survey-portal-table {
+    border-collapse: separate;
+    border-spacing: 0 0.55rem;
+  }
+  .survey-portal-table thead th {
+    padding: 0.7rem 0.85rem;
+  }
+  .survey-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #64748b;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .survey-sort-link:hover {
+    color: #0f172a;
+  }
+  .survey-sort-link.active {
+    color: #0f172a;
+  }
+  .survey-sort-arrow {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+  .survey-portal-table tbody td {
+    padding: 0.85rem 0.85rem;
+    vertical-align: top;
+  }
+  .survey-portal-table tbody tr {
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18);
+    border-radius: 0.5rem;
+  }
+  .survey-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 7rem;
+  }
+  .survey-action-btn {
+    width: 7rem;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.82rem;
+    justify-content: center;
+  }
+</style>
+<main class="mx-auto max-w-6xl px-6 py-10">
+  <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Management</p>
+      <h1 class="mt-2 text-3xl font-bold">Assign Survey to Customer</h1>
+    </div>
+    <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-dashboard' %}">Dashboard</a>
+  </header>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Create Assignment</h2>
+    <form method="post" class="mt-4 grid gap-4 md:grid-cols-3">
+      {% csrf_token %}
+      <div>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.customer.id_for_label }}">Customer</label>
+        {{ form.customer }}
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.template.id_for_label }}">Ready Template</label>
+        {{ form.template }}
+      </div>
+      <div class="flex items-end">
+        <button class="uv-btn-new w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Generate Link</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Survey Portal</h2>
+    <div class="mt-4 overflow-x-auto">
+      <table class="survey-portal-table min-w-full text-left text-sm">
+        <thead class="text-slate-500">
+          <tr>
+            <th>
+              <a class="survey-sort-link {% if sort == 'customer' %}active{% endif %}" href="?sort=customer&dir={% if sort == 'customer' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Customer
+                {% if sort == 'customer' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'template' %}active{% endif %}" href="?sort=template&dir={% if sort == 'template' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Template
+                {% if sort == 'template' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'status' %}active{% endif %}" href="?sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Status
+                {% if sort == 'status' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'first_open' %}active{% endif %}" href="?sort=first_open&dir={% if sort == 'first_open' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                First Open
+                {% if sort == 'first_open' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'first_save' %}active{% endif %}" href="?sort=first_save&dir={% if sort == 'first_save' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                First Save
+                {% if sort == 'first_save' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'saved_again' %}active{% endif %}" href="?sort=saved_again&dir={% if sort == 'saved_again' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Saved Again
+                {% if sort == 'saved_again' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'link' %}active{% endif %}" href="?sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Link
+                {% if sort == 'link' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>Survey Link</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr class="{% if not s.is_link_active %}bg-slate-100 text-slate-400{% else %}bg-white{% endif %}">
+            <td>{{ s.customer.company_name }}</td>
+            <td>{{ s.template.name }}</td>
+            <td>
+              {% if s.status == 'open' %}
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Open</span>
+              {% elif s.status == 'closed' %}
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Closed</span>
+              {% elif s.status == 'saved_again' %}
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Closed Again</span>
+              {% else %}
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">{{ s.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>{{ s.started_at|default:"-" }}</td>
+            <td>{{ s.first_saved_at|default:"-" }}</td>
+            <td>{{ s.last_saved_again_at|default:"-" }}</td>
+            <td>
+              {% if s.is_link_active %}
+                <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Active</span>
+              {% else %}
+                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">Inactive</span>
+              {% endif %}
+            </td>
+            <td><a class="text-blue-700 underline" href="{% url 'survey-by-token' s.token %}" target="_blank">Open</a></td>
+            <td>
+              <div class="survey-actions">
+                <a class="survey-action-btn rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' s.id %}">Details</a>
+                <form method="post" action="{% url 'management-assignment-link-toggle' s.id %}">
+                  {% csrf_token %}
+                  {% if s.is_link_active %}
+                    <button class="uv-btn-warn survey-action-btn rounded border border-amber-300 px-2 py-1 text-amber-700" type="submit" name="action" value="deactivate">Deactivate</button>
+                  {% else %}
+                    <button class="uv-btn-new survey-action-btn rounded border border-emerald-300 px-2 py-1 text-emerald-700" type="submit" name="action" value="activate">Activate</button>
+                  {% endif %}
+                </form>
+                <button
+                  type="button"
+                  class="survey-action-btn rounded border border-red-300 px-2 py-1 text-red-700"
+                  data-delete-survey="true"
+                  data-delete-url="{% url 'management-assignment-delete' s.id %}"
+                  data-customer="{{ s.customer.company_name }}"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="py-4 text-slate-500">No assignments yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div id="delete-survey-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+  <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+    <h2 class="text-xl font-semibold text-red-700">Delete Survey Session</h2>
+    <p class="mt-3 text-sm text-slate-700">
+      You are deleting survey for: <span id="delete-survey-customer" class="font-semibold"></span>
+    </p>
+    <p class="mt-2 text-sm text-red-700">
+      Warning: this will erase all survey data (answers and history) permanently.
+    </p>
+    <p class="mt-2 text-sm text-slate-600">
+      Confirm button unlocks in <span id="delete-survey-counter">5</span> seconds.
+    </p>
+    <form id="delete-survey-form" method="post" class="mt-6 flex gap-3">
+      {% csrf_token %}
+      <button type="button" id="delete-survey-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+      <button type="submit" id="delete-survey-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
+        Delete permanently
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const modal = document.getElementById("delete-survey-modal");
+    const form = document.getElementById("delete-survey-form");
+    const customer = document.getElementById("delete-survey-customer");
+    const counter = document.getElementById("delete-survey-counter");
+    const confirm = document.getElementById("delete-survey-confirm");
+    const cancel = document.getElementById("delete-survey-cancel");
+    const triggers = document.querySelectorAll('[data-delete-survey="true"]');
+    let timer = null;
+    let left = 5;
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function openModal(url, customerName) {
+      form.action = url;
+      customer.textContent = customerName;
+      left = 5;
+      counter.textContent = String(left);
+      confirm.disabled = true;
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        left -= 1;
+        counter.textContent = String(Math.max(left, 0));
+        if (left <= 0) {
+          confirm.disabled = false;
+          clearInterval(timer);
+          timer = null;
+        }
+      }, 1000);
+    }
+
+    triggers.forEach((btn) => {
+      btn.addEventListener("click", () => openModal(btn.dataset.deleteUrl, btn.dataset.customer));
+    });
+    cancel.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+  })();
+</script>
+{% endblock %}

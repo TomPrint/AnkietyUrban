@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="uv-login-wrap relative min-h-screen overflow-hidden px-4 py-10 sm:px-6">
+  <section class="mx-auto max-w-4xl text-center">
+    <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="mx-auto h-20 w-auto sm:h-24" />
+    <p class="mt-4 text-xs uppercase tracking-[0.28em] text-slate-500">Ankiety Urban Vision</p>
+    <h1 class="mt-3 text-4xl font-bold text-slate-900 sm:text-5xl">Management Portal</h1>
+  </section>
+
+  <section class="mx-auto mt-10 w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl">
+    <h2 class="text-xl font-semibold">Sign in</h2>
+    <form method="post" class="mt-6 space-y-5">
+      {% csrf_token %}
+      {% if form.errors %}
+        <p class="rounded-md bg-red-50 p-3 text-sm text-red-700">Invalid username or password.</p>
+      {% endif %}
+      <div>
+        <label class="mb-1 block text-sm font-medium" for="id_username">Username</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" type="text" name="username" id="id_username" required />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium" for="id_password">Password</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" type="password" name="password" id="id_password" required />
+      </div>
+      <button class="w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700" type="submit">
+        Login
+      </button>
+    </form>
+  </section>
+
+  <div class="square-particles" aria-hidden="true">
+    <span class="sq" style="--x:3; --s:14; --d:0.0; --t:14"></span>
+    <span class="sq" style="--x:8; --s:24; --d:0.6; --t:18"></span>
+    <span class="sq" style="--x:13; --s:18; --d:1.2; --t:16"></span>
+    <span class="sq" style="--x:19; --s:28; --d:0.2; --t:21"></span>
+    <span class="sq" style="--x:24; --s:12; --d:1.1; --t:13"></span>
+    <span class="sq" style="--x:31; --s:22; --d:2.0; --t:19"></span>
+    <span class="sq" style="--x:37; --s:16; --d:0.8; --t:15"></span>
+    <span class="sq" style="--x:43; --s:26; --d:1.7; --t:20"></span>
+    <span class="sq" style="--x:48; --s:14; --d:0.4; --t:14"></span>
+    <span class="sq" style="--x:54; --s:20; --d:2.3; --t:17"></span>
+    <span class="sq" style="--x:60; --s:30; --d:1.4; --t:22"></span>
+    <span class="sq" style="--x:66; --s:12; --d:2.8; --t:12"></span>
+    <span class="sq" style="--x:72; --s:24; --d:0.5; --t:18"></span>
+    <span class="sq" style="--x:78; --s:16; --d:1.9; --t:15"></span>
+    <span class="sq" style="--x:84; --s:28; --d:0.9; --t:21"></span>
+    <span class="sq" style="--x:89; --s:14; --d:2.4; --t:14"></span>
+    <span class="sq" style="--x:94; --s:22; --d:1.5; --t:19"></span>
+    <span class="sq" style="--x:98; --s:12; --d:0.1; --t:12"></span>
+  </div>
+</main>
+
+<style>
+  .uv-login-wrap {
+    background:
+      radial-gradient(circle at 12% 16%, rgba(237, 29, 36, 0.2), transparent 38%),
+      radial-gradient(circle at 85% 78%, rgba(26, 35, 49, 0.25), transparent 44%),
+      linear-gradient(130deg, #f3f6fb 0%, #eef3fb 55%, #f9fbff 100%);
+    padding-bottom: 220px;
+  }
+  .square-particles {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -40px;
+    height: 260px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .sq {
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    bottom: -80px;
+    width: calc(var(--s) * 1px);
+    height: calc(var(--s) * 1px);
+    border-radius: 2px;
+    background: linear-gradient(180deg, #ed1d24 0%, #1a2331 100%);
+    opacity: 0.55;
+    box-shadow: 0 10px 22px rgba(26, 35, 49, 0.2);
+    animation: float-square calc(var(--t) * 1s) linear infinite;
+    animation-delay: calc(var(--d) * -1s);
+    will-change: transform, opacity;
+  }
+  .sq:nth-child(3n) {
+    background: linear-gradient(180deg, #1a2331 0%, #ed1d24 100%);
+    opacity: 0.48;
+  }
+  @keyframes float-square {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.55;
+    }
+    80% {
+      opacity: 0.55;
+    }
+    100% {
+      transform: translateY(-320px) rotate(180deg);
+      opacity: 0;
+    }
+  }
+</style>
+{% endblock %}
