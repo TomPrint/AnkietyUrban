@@ -3,7 +3,7 @@
 {% block title %}Ankieta {{ session.customer.company_name }}{% endblock %}
 
 {% block content %}
-<main class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+<main class="mx-auto max-w-3xl px-4 pb-8 pt-2 sm:px-6">
   <section class="rounded-2xl bg-white p-6 shadow-lg sm:p-8">
     <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Ankiety Urban</p>
     <h1 class="mt-2 text-2xl font-bold sm:text-3xl">Ankieta {{ session.customer.company_name }}</h1>
@@ -12,7 +12,7 @@
   </section>
 
   <section class="mt-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8">
-    <form method="post" class="space-y-6">
+    <form method="post" class="space-y-6 uv-survey-form">
       {% csrf_token %}
       <div>
         <h2 class="text-lg font-semibold">{{ question.title }}</h2>
@@ -24,7 +24,7 @@
         {% endif %}
       </div>
 
-      <div class="space-y-2">
+      <div class="space-y-2 uv-answer-shell">
         {{ form.answer }}
       </div>
 

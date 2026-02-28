@@ -29,3 +29,5 @@ urlpatterns = [
     path("", include("surveys.urls")),
     path("it-secret-admin-portal-uv/", admin.site.urls),
 ]
+
+handler404 = "config.views.custom_404"

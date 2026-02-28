@@ -11,12 +11,16 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{% static 'css/uv-theme.css' %}" />
   </head>
-  <body class="min-h-screen bg-slate-100 text-slate-900">
-    {% if user.is_authenticated and request.resolver_match.url_name != 'login' %}
+  <body class="min-h-screen text-slate-900 {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}uv-survey-bg{% else %}bg-slate-100{% endif %}">
+    {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}
+    <div class="mx-auto flex w-full max-w-7xl justify-end px-4 pt-2 sm:px-6">
+      <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-[4.55rem] w-auto" />
+    </div>
+    {% elif user.is_authenticated and request.resolver_match.url_name != 'login' %}
     <nav class="uv-nav border-b">
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <a href="{% if user.is_authenticated %}{% url 'management-dashboard' %}{% else %}{% url 'login' %}{% endif %}" class="flex items-center gap-3">
-          <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-20 w-auto" />
+          <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-[6.5rem] w-auto" />
           <span class="uv-brand text-xs sm:text-sm">Ankiety</span>
         </a>
         {% if user.is_authenticated %}
@@ -43,7 +47,26 @@
     </div>
     {% endif %}
     {% block content %}{% endblock %}
-    {% if user.is_authenticated and request.resolver_match.url_name != 'login' %}
+    {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}
+    <div class="uv-cityline" aria-hidden="true">
+      <div class="uv-city-stage">
+        <div class="uv-city-base"></div>
+        <div class="uv-homes uv-front">
+          <div class="uv-home1"></div><div class="uv-home2"></div><div class="uv-home3"></div><div class="uv-home4"></div><div class="uv-home5"></div><div class="uv-home6"></div><div class="uv-home7"></div>
+          <div class="uv-home8"></div><div class="uv-home9"></div><div class="uv-home10"></div><div class="uv-home11"></div><div class="uv-home12"></div><div class="uv-home13"></div><div class="uv-home14"></div>
+        </div>
+        <div class="uv-homes uv-back">
+          <div class="uv-home1"></div><div class="uv-home2"></div><div class="uv-home3"></div><div class="uv-home4"></div><div class="uv-home5"></div><div class="uv-home6"></div><div class="uv-home7"></div>
+          <div class="uv-home8"></div><div class="uv-home9"></div><div class="uv-home10"></div><div class="uv-home11"></div><div class="uv-home12"></div><div class="uv-home13"></div><div class="uv-home14"></div>
+        </div>
+        <div class="uv-homes uv-moreback">
+          <div class="uv-home1"></div><div class="uv-home2"></div><div class="uv-home3"></div><div class="uv-home4"></div><div class="uv-home5"></div><div class="uv-home6"></div><div class="uv-home7"></div>
+          <div class="uv-home8"></div><div class="uv-home9"></div><div class="uv-home10"></div><div class="uv-home11"></div><div class="uv-home12"></div><div class="uv-home13"></div><div class="uv-home14"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% if user.is_authenticated and request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'survey-by-token' and request.resolver_match.url_name != 'survey-thanks' and request.resolver_match.url_name != 'survey-saved' %}
     <script>
       (function () {
         const idleMs = Number("{{ IDLE_LOGOUT_SECONDS|default:900 }}") * 1000;
