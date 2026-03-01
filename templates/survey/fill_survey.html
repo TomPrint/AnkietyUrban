@@ -19,13 +19,32 @@
         {% if question.help_text %}
           <p class="mt-1 text-sm text-slate-500">{{ question.help_text }}</p>
         {% endif %}
-        {% if form.answer.errors %}
-          <p class="mt-2 text-sm text-red-700">{{ form.answer.errors|join:", " }}</p>
+        {% if question.source_url %}
+          <p class="mt-2 text-sm">
+            <a
+              class="font-semibold text-blue-700 underline hover:text-blue-900"
+              href="{{ question.source_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              External reference
+            </a>
+          </p>
         {% endif %}
       </div>
 
       <div class="space-y-2 uv-answer-shell">
-        {{ form.answer }}
+        {% for field in form %}
+          <div class="space-y-1">
+            {% if form.fields|length > 1 %}
+              <label class="block text-sm font-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% endif %}
+            {{ field }}
+            {% if field.errors %}
+              <p class="text-sm text-red-700">{{ field.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">

@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 from django.contrib.auth.models import User
 
@@ -11,11 +13,16 @@ class DynamicQuestionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.node = node
         self.question = node.question
-        self.fields["answer"] = self._build_field(self.question)
+        self.is_complex = self.question.question_type == Question.QuestionType.COMPLEX
+        if self.is_complex:
+            self.fields.pop("answer", None)
+            self._build_complex_fields()
+        else:
+            self.fields["answer"] = self._build_field(self.question)
 
     def _build_field(self, question: Question):
         common = {
-            "required": question.required,
+            "required": True,
             "label": question.title,
             "help_text": question.help_text,
         }
@@ -33,8 +40,59 @@ class DynamicQuestionForm(forms.Form):
             )
         return forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), **common)
 
+    def _build_complex_fields(self):
+        for idx, item in enumerate(self.question.complex_items or []):
+            item_type = item.get("type")
+            item_label = item.get("label", f"Item {idx + 1}")
+            field_name = f"complex_{idx}"
+            if item_type == Question.QuestionType.YES_NO:
+                self.fields[field_name] = forms.ChoiceField(
+                    choices=(("yes", "Yes"), ("no", "No")),
+                    widget=forms.RadioSelect,
+                    required=True,
+                    label=item_label,
+                )
+            elif item_type == Question.QuestionType.MULTI_CHOICE:
+                options = item.get("options", [])
+                self.fields[field_name] = forms.MultipleChoiceField(
+                    choices=[(str(i), opt) for i, opt in enumerate(options)],
+                    widget=forms.CheckboxSelectMultiple,
+                    required=True,
+                    label=item_label,
+                )
+            else:
+                self.fields[field_name] = forms.CharField(
+                    widget=forms.Textarea(attrs={"rows": 3}),
+                    required=True,
+                    label=item_label,
+                )
+
+    def get_answer_payload(self):
+        if not self.is_complex:
+            return self.cleaned_data["answer"]
+        payload = []
+        for idx, item in enumerate(self.question.complex_items or []):
+            field_name = f"complex_{idx}"
+            value = self.cleaned_data.get(field_name)
+            payload.append(
+                {
+                    "type": item.get("type"),
+                    "label": item.get("label", f"Item {idx + 1}"),
+                    "options": item.get("options", []),
+                    "value": value,
+                }
+            )
+        return payload
+
     def fill_initial_from_answer(self, answer: SurveyAnswer | None):
         if not answer:
+            return
+        if self.question.question_type == Question.QuestionType.COMPLEX:
+            saved_items = answer.complex_answer or []
+            for idx, item in enumerate(saved_items):
+                field_name = f"complex_{idx}"
+                if field_name in self.fields:
+                    self.initial[field_name] = item.get("value")
             return
         if self.question.question_type == Question.QuestionType.YES_NO:
             if answer.yes_no_answer is not None:
@@ -53,17 +111,26 @@ class QuestionManageForm(forms.ModelForm):
         help_text="For Multi choice: one option per line.",
         label="Options",
     )
+    complex_items_json = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        label="Complex Items",
+    )
 
     class Meta:
         model = Question
-        fields = ["title", "question_type", "help_text", "required", "options_text"]
+        fields = ["title", "question_type", "help_text", "source_url", "options_text", "complex_items_json"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+        self.fields["source_url"].label = "Promotional URL"
+        self.fields["source_url"].help_text = "Optional external URL shown under this question."
+        self.initial.setdefault("complex_items_json", "[]")
         if self.instance and self.instance.pk:
             self.initial["options_text"] = "\n".join(self.instance.choices.values_list("label", flat=True))
+            self.initial["complex_items_json"] = json.dumps(self.instance.complex_items or [])
 
     def clean(self):
         cleaned = super().clean()
@@ -71,12 +138,80 @@ class QuestionManageForm(forms.ModelForm):
         options = [line.strip() for line in cleaned.get("options_text", "").splitlines() if line.strip()]
         if question_type == Question.QuestionType.MULTI_CHOICE and not options:
             self.add_error("options_text", "Multi choice question needs at least one option.")
+        if question_type == Question.QuestionType.COMPLEX:
+            raw_json = cleaned.get("complex_items_json", "").strip() or "[]"
+            try:
+                items = json.loads(raw_json)
+            except json.JSONDecodeError:
+                self.add_error("complex_items_json", "Invalid complex items data.")
+                items = []
+            if not isinstance(items, list):
+                self.add_error("complex_items_json", "Complex items must be a list.")
+                items = []
+            parsed = []
+            for idx, item in enumerate(items, start=1):
+                if not isinstance(item, dict):
+                    self.add_error("complex_items_json", f"Item {idx}: invalid format.")
+                    continue
+                item_type = str(item.get("type", "")).strip().lower()
+                label = str(item.get("label", "")).strip()
+                if item_type not in (
+                    Question.QuestionType.OPEN,
+                    Question.QuestionType.YES_NO,
+                    Question.QuestionType.MULTI_CHOICE,
+                ):
+                    self.add_error(
+                        "complex_items_json",
+                        f"Item {idx}: invalid type '{item_type}'. Use open / yes_no / multi_choice.",
+                    )
+                    continue
+                if not label:
+                    self.add_error("complex_items_json", f"Item {idx}: missing question label.")
+                    continue
+                if item_type == Question.QuestionType.MULTI_CHOICE:
+                    raw_options = item.get("options", [])
+                    if not isinstance(raw_options, list):
+                        self.add_error("complex_items_json", f"Item {idx}: options must be a list.")
+                        continue
+                    item_options = [str(opt).strip() for opt in raw_options if str(opt).strip()]
+                    if not item_options:
+                        self.add_error("complex_items_json", f"Item {idx}: add at least one option.")
+                        continue
+                    parsed.append(
+                        {
+                            "type": Question.QuestionType.MULTI_CHOICE,
+                            "label": label,
+                            "options": item_options,
+                        }
+                    )
+                else:
+                    parsed.append({"type": item_type, "label": label, "options": []})
+
+            if not parsed:
+                self.add_error(
+                    "complex_items_json",
+                    "Complex question needs at least one valid sub-question.",
+                )
+            cleaned["parsed_complex_items"] = parsed
+        else:
+            cleaned["parsed_complex_items"] = []
         return cleaned
 
     def save(self, commit=True):
         obj = super().save(commit=commit)
         if not commit:
+            obj.required = True
+            if obj.question_type != Question.QuestionType.COMPLEX:
+                obj.complex_items = []
+            else:
+                obj.complex_items = self.cleaned_data.get("parsed_complex_items", [])
             return obj
+        obj.required = True
+        if obj.question_type == Question.QuestionType.COMPLEX:
+            obj.complex_items = self.cleaned_data.get("parsed_complex_items", [])
+        else:
+            obj.complex_items = []
+        obj.save(update_fields=["required", "complex_items", "updated_at"])
         obj.choices.all().delete()
         if obj.question_type == Question.QuestionType.MULTI_CHOICE:
             options = [line.strip() for line in self.cleaned_data.get("options_text", "").splitlines() if line.strip()]

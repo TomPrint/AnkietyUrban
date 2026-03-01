@@ -70,17 +70,12 @@
               </a>
             </th>
             <th class="py-2">
-              <a class="question-sort-link {% if sort == 'required' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=required&dir={% if sort == 'required' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Required
-                {% if sort == 'required' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
-              </a>
-            </th>
-            <th class="py-2">
               <a class="question-sort-link {% if sort == 'options' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=options&dir={% if sort == 'options' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Options
                 {% if sort == 'options' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
+            <th class="py-2">Link Attachment</th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
@@ -93,10 +88,18 @@
               </a>
             </td>
             <td class="py-2">{{ q.get_question_type_display }}</td>
-            <td class="py-2">{% if q.required %}Yes{% else %}No{% endif %}</td>
             <td class="py-2">
               {% if q.question_type == 'multi_choice' %}
                 {{ q.choices_count }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td class="py-2">
+              {% if q.source_url %}
+                <a class="font-semibold text-blue-700 underline hover:text-blue-900" href="{{ q.source_url }}" target="_blank" rel="noopener noreferrer">
+                  Open
+                </a>
               {% else %}
                 -
               {% endif %}
@@ -117,7 +120,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="py-4 text-slate-500">No questions yet.</td></tr>
+          <tr><td colspan="6" class="py-4 text-slate-500">No questions yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

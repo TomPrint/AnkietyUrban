@@ -286,6 +286,7 @@ def _build_or_get_answer(session: SurveySession, node: TemplateNode):
 def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
     answer.yes_no_answer = None
     answer.open_answer = ""
+    answer.complex_answer = []
     answer.save()
     answer.selected_choices.clear()
 
@@ -298,6 +299,10 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
         answer.save(update_fields=["updated_at"])
         if value:
             answer.selected_choices.set(value)
+        return
+    if q_type == Question.QuestionType.COMPLEX:
+        answer.complex_answer = value or []
+        answer.save(update_fields=["complex_answer", "updated_at"])
         return
     answer.open_answer = value or ""
     answer.save(update_fields=["open_answer", "updated_at"])
@@ -314,6 +319,33 @@ def _answer_value_display(answer: SurveyAnswer) -> str:
     if q_type == Question.QuestionType.MULTI_CHOICE:
         labels = list(answer.selected_choices.values_list("label", flat=True))
         return ", ".join(labels) if labels else "-"
+    if q_type == Question.QuestionType.COMPLEX:
+        items = answer.complex_answer or []
+        if not items:
+            return "-"
+        rendered = []
+        for item in items:
+            label = item.get("label", "Item")
+            value = item.get("value")
+            item_type = item.get("type")
+            if isinstance(value, list):
+                if item_type == Question.QuestionType.MULTI_CHOICE:
+                    options = item.get("options", [])
+                    selected_labels = []
+                    for v in value:
+                        try:
+                            index = int(v)
+                        except (TypeError, ValueError):
+                            continue
+                        if 0 <= index < len(options):
+                            selected_labels.append(options[index])
+                    value_text = ", ".join(selected_labels) if selected_labels else "-"
+                else:
+                    value_text = ", ".join(str(v) for v in value) if value else "-"
+            else:
+                value_text = str(value).strip() if value is not None and str(value).strip() else "-"
+            rendered.append(f"{label}: {value_text}")
+        return " | ".join(rendered)
     value = (answer.open_answer or "").strip()
     return value if value else "-"
 
@@ -528,7 +560,6 @@ def question_list(request: HttpRequest) -> HttpResponse:
     sort_map = {
         "title": "title",
         "type": "question_type",
-        "required": "required",
         "options": "choices_count",
         "updated": "updated_at",
     }
@@ -964,7 +995,7 @@ class SurveyByTokenView(View):
             )
 
         answer = _build_or_get_answer(session, node)
-        value = form.cleaned_data["answer"]
+        value = form.get_answer_payload()
         _persist_answer(answer, node, value)
 
         next_node = _resolve_next_node(node, value)

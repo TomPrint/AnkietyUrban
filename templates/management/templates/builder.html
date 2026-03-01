@@ -24,9 +24,33 @@
     <aside class="rounded-xl bg-white p-4 shadow">
       <h2 class="text-lg font-semibold">Questions</h2>
       <p class="mt-1 text-xs text-slate-500">Drag a question into the canvas to create a node.</p>
+      <div class="mt-3 flex items-center gap-2">
+        <input
+          id="builder-question-search"
+          type="search"
+          placeholder="Search questions..."
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          id="builder-question-search-btn"
+          type="button"
+          class="rounded-lg bg-slate-900 px-3 py-2 text-white"
+          aria-label="Search questions"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+          </svg>
+        </button>
+      </div>
       <div class="mt-3 space-y-2">
         {% for q in questions %}
-        <div draggable="true" data-question-id="{{ q.id }}" class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm">
+        <div
+          draggable="true"
+          data-question-id="{{ q.id }}"
+          data-question-search="{{ q.title|lower }} {{ q.get_question_type_display|lower }}"
+          class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm"
+        >
           <div class="font-semibold">{{ q.title }}</div>
           <div class="text-xs uppercase text-slate-500">{{ q.get_question_type_display }}</div>
         </div>
@@ -130,6 +154,8 @@
     const canvas = document.getElementById("builder-canvas");
     const svg = document.getElementById("link-layer");
     const questionsDom = Array.from(document.querySelectorAll("[data-question-id]"));
+    const questionSearchInput = document.getElementById("builder-question-search");
+    const questionSearchBtn = document.getElementById("builder-question-search-btn");
     const previewModal = document.getElementById("fullscreen-preview-modal");
     const previewViewport = document.getElementById("fullscreen-preview-viewport");
     const previewStage = document.getElementById("fullscreen-preview-stage");
@@ -151,6 +177,16 @@
         if (v.startsWith(name)) return v.substring(name.length);
       }
       return "";
+    }
+
+    function filterQuestionList() {
+      if (!questionSearchInput) return;
+      const term = questionSearchInput.value.trim().toLowerCase();
+      questionsDom.forEach((el) => {
+        const haystack = (el.dataset.questionSearch || "").toLowerCase();
+        const match = !term || haystack.includes(term);
+        el.classList.toggle("hidden", !match);
+      });
     }
 
     function postForm(url, data) {
@@ -667,6 +703,18 @@
     questionsDom.forEach((el) => {
       el.addEventListener("dragstart", (ev) => ev.dataTransfer.setData("question-id", el.dataset.questionId));
     });
+    if (questionSearchInput) {
+      questionSearchInput.addEventListener("input", filterQuestionList);
+      questionSearchInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          filterQuestionList();
+        }
+      });
+    }
+    if (questionSearchBtn) {
+      questionSearchBtn.addEventListener("click", filterQuestionList);
+    }
 
     canvas.addEventListener("dragover", (ev) => ev.preventDefault());
     canvas.addEventListener("mousemove", (ev) => {
