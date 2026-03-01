@@ -17,6 +17,10 @@ from .views import (
     survey_session_delete,
     survey_saved,
     survey_thanks,
+    user_create,
+    user_delete,
+    user_edit,
+    user_list,
     template_builder,
     template_builder_data,
     template_copy,
@@ -31,6 +35,10 @@ from .views import (
 )
 
 urlpatterns = [
+    path("management/users/", user_list, name="management-users"),
+    path("management/users/new/", user_create, name="management-user-create"),
+    path("management/users/<int:user_id>/edit/", user_edit, name="management-user-edit"),
+    path("management/users/<int:user_id>/delete/", user_delete, name="management-user-delete"),
     path("management/customers/", customer_list, name="management-customers"),
     path("management/customers/new/", customer_create, name="management-customer-create"),
     path("management/customers/<int:customer_id>/edit/", customer_edit, name="management-customer-edit"),

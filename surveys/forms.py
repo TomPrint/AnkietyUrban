@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth.models import User
 
 from .models import Customer, Question, QuestionChoice, SurveyAnswer, SurveySession, SurveyTemplate, TemplateNode
 
@@ -117,3 +118,60 @@ class SurveyAssignmentForm(forms.ModelForm):
         self.fields["template"].queryset = SurveyTemplate.objects.filter(status=SurveyTemplate.Status.READY)
         for field in self.fields.values():
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+
+
+class UserManageForm(forms.ModelForm):
+    password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput,
+        help_text="Set a password for new users. Leave blank on edit to keep current password.",
+    )
+    password_confirm = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput,
+        label="Confirm password",
+        help_text="Repeat the same password.",
+    )
+
+    class Meta:
+        model = User
+        fields = ["username", "first_name", "last_name", "email", "is_staff", "is_active", "password", "password_confirm"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name == "password":
+                field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+            elif isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
+            else:
+                field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+
+    def clean_password(self):
+        password = self.cleaned_data.get("password", "")
+        if not self.instance.pk and not password:
+            raise forms.ValidationError("Password is required for new users.")
+        return password
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get("password") or ""
+        password_confirm = cleaned.get("password_confirm") or ""
+
+        if self.instance.pk:
+            # On edit, both fields must be provided together to change password.
+            if bool(password) ^ bool(password_confirm):
+                self.add_error("password_confirm", "Provide both password fields to change password.")
+        if password or password_confirm:
+            if password != password_confirm:
+                self.add_error("password_confirm", "Passwords do not match.")
+        return cleaned
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get("password")
+        if password:
+            user.set_password(password)
+        if commit:
+            user.save()
+        return user

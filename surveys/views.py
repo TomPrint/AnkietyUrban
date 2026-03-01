@@ -1,5 +1,6 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
@@ -8,11 +9,12 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
 
-from .forms import CustomerForm, DynamicQuestionForm, QuestionManageForm, SurveyAssignmentForm, SurveyTemplateForm
+from .forms import CustomerForm, DynamicQuestionForm, QuestionManageForm, SurveyAssignmentForm, SurveyTemplateForm, UserManageForm
 from .models import Customer, Question, SurveyAnswer, SurveySession, SurveySubmissionSnapshot, SurveyTemplate, TemplateNode
 
 SYSTEM_START_QUESTION_TITLE = "Imie i nazwisko osoby wypelniajacej ankiete"
 SYSTEM_START_QUESTION_HELP = "Podaj imie i nazwisko."
+staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
 
 
 def _start_node(template: SurveyTemplate):
@@ -341,7 +343,7 @@ def _capture_submission_snapshot(session: SurveySession):
     )
 
 
-@login_required
+@staff_required
 def management_dashboard(request: HttpRequest) -> HttpResponse:
     context = {
         "customers_count": Customer.objects.count(),
@@ -355,13 +357,49 @@ def management_dashboard(request: HttpRequest) -> HttpResponse:
     return render(request, "management/dashboard.html", context)
 
 
-@login_required
+@staff_required
+def user_list(request: HttpRequest) -> HttpResponse:
+    users = User.objects.order_by("username")
+    return render(request, "management/users/list.html", {"users": users})
+
+
+@staff_required
+def user_create(request: HttpRequest) -> HttpResponse:
+    form = UserManageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("management-users")
+    return render(request, "management/users/form.html", {"form": form, "title": "Create User"})
+
+
+@staff_required
+def user_edit(request: HttpRequest, user_id: int) -> HttpResponse:
+    managed_user = get_object_or_404(User, pk=user_id)
+    form = UserManageForm(request.POST or None, instance=managed_user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("management-users")
+    return render(request, "management/users/form.html", {"form": form, "title": "Edit User"})
+
+
+@staff_required
+@require_POST
+def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
+    managed_user = get_object_or_404(User, pk=user_id)
+    if managed_user.id == request.user.id:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect("management-users")
+    managed_user.delete()
+    return redirect("management-users")
+
+
+@staff_required
 def customer_list(request: HttpRequest) -> HttpResponse:
     customers = Customer.objects.all()
     return render(request, "management/customers/list.html", {"customers": customers})
 
 
-@login_required
+@staff_required
 def customer_create(request: HttpRequest) -> HttpResponse:
     form = CustomerForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -370,7 +408,7 @@ def customer_create(request: HttpRequest) -> HttpResponse:
     return render(request, "management/customers/form.html", {"form": form, "title": "Create Customer"})
 
 
-@login_required
+@staff_required
 def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
     customer = get_object_or_404(Customer, pk=customer_id)
     form = CustomerForm(request.POST or None, instance=customer)
@@ -380,7 +418,7 @@ def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
     return render(request, "management/customers/form.html", {"form": form, "title": "Edit Customer"})
 
 
-@login_required
+@staff_required
 @require_POST
 def customer_delete(request: HttpRequest, customer_id: int) -> HttpResponse:
     customer = get_object_or_404(Customer, pk=customer_id)
@@ -388,7 +426,7 @@ def customer_delete(request: HttpRequest, customer_id: int) -> HttpResponse:
     return redirect("management-customers")
 
 
-@login_required
+@staff_required
 def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
     form = SurveyAssignmentForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -428,7 +466,7 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
+@staff_required
 @require_POST
 def survey_link_toggle(request: HttpRequest, session_id: int) -> HttpResponse:
     session = get_object_or_404(SurveySession, pk=session_id)
@@ -441,7 +479,7 @@ def survey_link_toggle(request: HttpRequest, session_id: int) -> HttpResponse:
     return redirect("management-assignments")
 
 
-@login_required
+@staff_required
 @require_POST
 def survey_session_delete(request: HttpRequest, session_id: int) -> HttpResponse:
     session = get_object_or_404(SurveySession, pk=session_id)
@@ -449,7 +487,7 @@ def survey_session_delete(request: HttpRequest, session_id: int) -> HttpResponse
     return redirect("management-assignments")
 
 
-@login_required
+@staff_required
 def survey_session_detail(request: HttpRequest, session_id: int) -> HttpResponse:
     session = get_object_or_404(
         SurveySession.objects.select_related("customer", "template"),
@@ -463,7 +501,7 @@ def survey_session_detail(request: HttpRequest, session_id: int) -> HttpResponse
     return render(request, "management/assignments/detail.html", context)
 
 
-@login_required
+@staff_required
 def question_list(request: HttpRequest) -> HttpResponse:
     search_query = request.GET.get("q", "").strip()
     sort_map = {
@@ -500,7 +538,7 @@ def question_list(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
+@staff_required
 def question_create(request: HttpRequest) -> HttpResponse:
     form = QuestionManageForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -509,7 +547,7 @@ def question_create(request: HttpRequest) -> HttpResponse:
     return render(request, "management/questions/form.html", {"form": form, "title": "Create Question"})
 
 
-@login_required
+@staff_required
 def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False)
     form = QuestionManageForm(request.POST or None, instance=question)
@@ -519,7 +557,7 @@ def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
     return render(request, "management/questions/form.html", {"form": form, "title": "Edit Question"})
 
 
-@login_required
+@staff_required
 def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False)
     templates = (
@@ -545,7 +583,7 @@ def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
     return render(request, "management/questions/detail.html", context)
 
 
-@login_required
+@staff_required
 @require_POST
 def question_delete(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False)
@@ -553,13 +591,13 @@ def question_delete(request: HttpRequest, question_id: int) -> HttpResponse:
     return redirect("management-questions")
 
 
-@login_required
+@staff_required
 def template_list(request: HttpRequest) -> HttpResponse:
     templates = SurveyTemplate.objects.prefetch_related("nodes").annotate(live_sessions_count=Count("survey_sessions")).all()
     return render(request, "management/templates/list.html", {"templates": templates})
 
 
-@login_required
+@staff_required
 def template_copy(request: HttpRequest) -> HttpResponse:
     templates = SurveyTemplate.objects.annotate(live_sessions_count=Count("survey_sessions")).order_by("name")
     initial_source = request.GET.get("source", "")
@@ -633,7 +671,7 @@ def template_copy(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
+@staff_required
 def template_create(request: HttpRequest) -> HttpResponse:
     form = SurveyTemplateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -643,7 +681,7 @@ def template_create(request: HttpRequest) -> HttpResponse:
     return render(request, "management/templates/form.html", {"form": form, "title": "Create Template"})
 
 
-@login_required
+@staff_required
 def template_edit(request: HttpRequest, template_id: int) -> HttpResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
     if _template_is_live(template):
@@ -656,7 +694,7 @@ def template_edit(request: HttpRequest, template_id: int) -> HttpResponse:
     return render(request, "management/templates/form.html", {"form": form, "title": "Edit Template"})
 
 
-@login_required
+@staff_required
 @require_POST
 def template_delete(request: HttpRequest, template_id: int) -> HttpResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
@@ -667,7 +705,7 @@ def template_delete(request: HttpRequest, template_id: int) -> HttpResponse:
     return redirect("management-templates")
 
 
-@login_required
+@staff_required
 def template_builder(request: HttpRequest, template_id: int) -> HttpResponse:
     template = get_object_or_404(SurveyTemplate.objects.select_related("start_node"), pk=template_id)
     if _template_is_live(template):
@@ -685,7 +723,7 @@ def template_builder(request: HttpRequest, template_id: int) -> HttpResponse:
     return render(request, "management/templates/builder.html", context)
 
 
-@login_required
+@staff_required
 @require_GET
 def template_builder_data(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
@@ -703,7 +741,7 @@ def template_builder_data(request: HttpRequest, template_id: int) -> JsonRespons
     )
 
 
-@login_required
+@staff_required
 @require_POST
 def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
@@ -724,7 +762,7 @@ def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse
     return JsonResponse({"ok": True, "node_id": node.id})
 
 
-@login_required
+@staff_required
 @require_POST
 def template_node_update(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
@@ -798,7 +836,7 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
     return JsonResponse({"ok": True})
 
 
-@login_required
+@staff_required
 @require_POST
 def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)
@@ -831,7 +869,7 @@ def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -
     return JsonResponse({"ok": True})
 
 
-@login_required
+@staff_required
 @require_POST
 def template_save_ready(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id)

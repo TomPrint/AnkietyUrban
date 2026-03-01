@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Customers | Ankiety Urban{% endblock %}
+{% block title %}Users | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
       <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Management</p>
-      <h1 class="mt-2 text-3xl font-bold">Customers</h1>
+      <h1 class="mt-2 text-3xl font-bold">Users</h1>
     </div>
     <div class="flex gap-3">
       <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-dashboard' %}">Dashboard</a>
-      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'management-customer-create' %}">New Customer</a>
+      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'management-user-create' %}">New User</a>
     </div>
   </header>
 
@@ -20,24 +20,26 @@
       <table class="min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
-            <th class="py-2">Company</th>
-            <th class="py-2">Address</th>
-            <th class="py-2">Contact</th>
+            <th class="py-2">Username</th>
+            <th class="py-2">Name</th>
             <th class="py-2">Email</th>
+            <th class="py-2">Staff</th>
+            <th class="py-2">Active</th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for c in customers %}
+          {% for u in users %}
           <tr class="border-t border-slate-200">
-            <td class="py-2">{{ c.company_name }}</td>
-            <td class="py-2">{{ c.address|default:"-" }}</td>
-            <td class="py-2">{{ c.contact_person|default:"-" }}</td>
-            <td class="py-2">{{ c.email|default:"-" }}</td>
+            <td class="py-2">{{ u.username }}</td>
+            <td class="py-2">{{ u.first_name }} {{ u.last_name|default:"" }}</td>
+            <td class="py-2">{{ u.email|default:"-" }}</td>
+            <td class="py-2">{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
+            <td class="py-2">{% if u.is_active %}Yes{% else %}No{% endif %}</td>
             <td class="py-2">
               <div class="flex gap-2">
-                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-customer-edit' c.id %}">Edit</a>
-                <form method="post" action="{% url 'management-customer-delete' c.id %}">
+                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-user-edit' u.id %}">Edit</a>
+                <form method="post" action="{% url 'management-user-delete' u.id %}">
                   {% csrf_token %}
                   <button class="rounded border border-red-300 px-2 py-1 text-red-700" type="submit">Delete</button>
                 </form>
@@ -45,7 +47,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="py-4 text-slate-500">No customers yet.</td></tr>
+          <tr><td colspan="6" class="py-4 text-slate-500">No users yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

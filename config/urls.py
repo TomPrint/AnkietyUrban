@@ -27,7 +27,7 @@ admin.site.has_permission = lambda request: bool(
 urlpatterns = [
     path("", include("accounts.urls")),
     path("", include("surveys.urls")),
-    path("it-secret-admin-portal-uv/", admin.site.urls),
+    path("admin/", admin.site.urls),
 ]
 
 handler404 = "config.views.custom_404"
