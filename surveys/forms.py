@@ -119,7 +119,15 @@ class QuestionManageForm(forms.ModelForm):
 
     class Meta:
         model = Question
-        fields = ["title", "question_type", "help_text", "source_url", "options_text", "complex_items_json"]
+        fields = [
+            "title",
+            "question_type",
+            "help_text",
+            "source_url",
+            "promotional_text",
+            "options_text",
+            "complex_items_json",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -127,6 +135,8 @@ class QuestionManageForm(forms.ModelForm):
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
         self.fields["source_url"].label = "Promotional URL"
         self.fields["source_url"].help_text = "Optional external URL shown under this question."
+        self.fields["promotional_text"].label = "Promotional Text"
+        self.fields["promotional_text"].help_text = "Optional short text shown next to the link in survey."
         self.initial.setdefault("complex_items_json", "[]")
         if self.instance and self.instance.pk:
             self.initial["options_text"] = "\n".join(self.instance.choices.values_list("label", flat=True))

@@ -30,6 +30,7 @@ class Question(models.Model):
     question_type = models.CharField(max_length=20, choices=QuestionType.choices)
     help_text = models.CharField(max_length=500, blank=True)
     source_url = models.URLField(blank=True)
+    promotional_text = models.CharField(max_length=255, blank=True)
     complex_items = models.JSONField(default=list, blank=True)
     required = models.BooleanField(default=True)
     is_system = models.BooleanField(default=False)

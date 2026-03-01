@@ -64,7 +64,13 @@
             <td class="py-2">{{ session.customer.company_name }}</td>
             <td class="py-2">{{ session.template.name }}</td>
             <td class="py-2">{% if session.status == 'saved_again' %}Closed Again{% else %}{{ session.get_status_display }}{% endif %}</td>
-            <td class="py-2">{{ session.saved_again_count }}</td>
+            <td class="py-2">
+              {% if session.first_saved_at %}
+                {{ session.saved_again_count|add:"1" }}
+              {% else %}
+                0
+              {% endif %}
+            </td>
             <td class="py-2"><a class="text-blue-700 underline" href="{% url 'survey-by-token' session.token %}">Open</a></td>
           </tr>
           {% empty %}

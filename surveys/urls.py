@@ -31,6 +31,7 @@ from .views import (
     template_node_create,
     template_node_delete,
     template_node_update,
+    template_check_errors,
     template_save_ready,
 )
 
@@ -74,6 +75,11 @@ urlpatterns = [
         "management/templates/<int:template_id>/save-ready/",
         template_save_ready,
         name="management-template-save-ready",
+    ),
+    path(
+        "management/templates/<int:template_id>/check-errors/",
+        template_check_errors,
+        name="management-template-check-errors",
     ),
     path("s/<uuid:token>/", SurveyByTokenView.as_view(), name="survey-by-token"),
     path("s/<uuid:token>/saved/", survey_saved, name="survey-saved"),

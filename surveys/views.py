@@ -229,12 +229,19 @@ def _start_node_or_404(template: SurveyTemplate, *, require_ready: bool = True):
     return start
 
 
-def _validate_target_node(template: SurveyTemplate, node_id: str | None):
+def _validate_target_node(template: SurveyTemplate, node_id: str | None, source_node: TemplateNode | None = None):
     if node_id in (None, ""):
         return None
     target = get_object_or_404(TemplateNode, pk=node_id, template=template)
     if target.is_forced_start:
         raise Http404("Cannot link to forced start node.")
+    incoming_qs = template.nodes.filter(
+        Q(next_node=target) | Q(yes_node=target) | Q(no_node=target)
+    )
+    if source_node is not None:
+        incoming_qs = incoming_qs.exclude(pk=source_node.pk)
+    if incoming_qs.exists():
+        raise ValueError(f"Node #{target.id} already has an incoming connection.")
     return target
 
 
@@ -838,12 +845,15 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
     if y is not None:
         node.y = int(y)
 
-    if next_id is not None:
-        node.next_node = _validate_target_node(template, next_id)
-    if yes_id is not None:
-        node.yes_node = _validate_target_node(template, yes_id)
-    if no_id is not None:
-        node.no_node = _validate_target_node(template, no_id)
+    try:
+        if next_id is not None:
+            node.next_node = _validate_target_node(template, next_id, source_node=node)
+        if yes_id is not None:
+            node.yes_node = _validate_target_node(template, yes_id, source_node=node)
+        if no_id is not None:
+            node.no_node = _validate_target_node(template, no_id, source_node=node)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
 
     if ends_survey is not None:
         node.ends_survey = ends_survey == "true"
@@ -918,6 +928,19 @@ def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -
             template.save(update_fields=["status", "updated_at"])
     else:
         template.save(update_fields=["status", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+@staff_required
+@require_POST
+def template_check_errors(request: HttpRequest, template_id: int) -> JsonResponse:
+    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    if _template_is_live(template):
+        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+    _ensure_forced_start_node(template)
+    errors = _validate_template_graph(template)
+    if errors:
+        return JsonResponse({"ok": False, "errors": errors}, status=400)
     return JsonResponse({"ok": True})
 
 

@@ -90,7 +90,7 @@ h6,
   color: #ffffff !important;
 }
 
-button:not(.uv-nav-link),
+button:not(.uv-nav-link):not(.connect-btn),
 input[type="button"],
 input[type="submit"],
 input[type="reset"],
@@ -105,7 +105,7 @@ a[role="button"]:not(.uv-nav-link) {
   transition: transform 120ms ease, box-shadow 160ms ease, filter 160ms ease;
 }
 
-button:not(.uv-nav-link):hover,
+button:not(.uv-nav-link):not(.connect-btn):hover,
 input[type="button"]:hover,
 input[type="submit"]:hover,
 input[type="reset"]:hover,
@@ -117,7 +117,7 @@ a[role="button"]:hover {
   box-shadow: 0 10px 18px -12px rgba(26, 35, 49, 0.6);
 }
 
-main button:not(.uv-nav-link):hover,
+main button:not(.uv-nav-link):not(.connect-btn):hover,
 main input[type="button"]:hover,
 main input[type="submit"]:hover,
 main input[type="reset"]:hover,
@@ -128,7 +128,7 @@ main a[role="button"]:hover {
   border-color: var(--uv-navy) !important;
 }
 
-button:not(.uv-nav-link):active,
+button:not(.uv-nav-link):not(.connect-btn):active,
 input[type="button"]:active,
 input[type="submit"]:active,
 input[type="reset"]:active,

@@ -18,6 +18,11 @@
             {{ question.source_url }}
           </a>
         </p>
+        {% if question.promotional_text %}
+          <p class="mt-1 text-sm">
+            Promotional Text: <span class="font-semibold">{{ question.promotional_text }}</span>
+          </p>
+        {% endif %}
       {% endif %}
       {% if question.question_type == 'complex' and question.complex_items %}
         <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">

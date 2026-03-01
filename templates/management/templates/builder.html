@@ -106,8 +106,20 @@
 
         <div class="flex gap-2 pt-2">
           <button id="btn-save-node" type="button" class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Save Draft</button>
+          <button id="btn-check-errors" type="button" class="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Check Errors</button>
           <button id="btn-save-ready" type="button" class="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Save & Ready</button>
           <button id="btn-delete-node" type="button" class="hidden rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">Delete</button>
+        </div>
+        <div id="delete-confirm-box" class="mt-3 hidden rounded-lg border border-red-200 bg-red-50 p-3">
+          <p class="text-sm text-red-800">Delete selected node?</p>
+          <div class="mt-2 flex gap-2">
+            <button id="delete-confirm-yes" type="button" class="rounded border border-red-300 px-3 py-1 text-sm font-semibold text-red-700">Confirm Delete</button>
+            <button id="delete-confirm-no" type="button" class="rounded border border-slate-300 px-3 py-1 text-sm font-semibold">Cancel</button>
+          </div>
+        </div>
+        <div id="builder-error-box" class="mt-3 hidden rounded-lg border border-red-200 bg-red-50 p-3">
+          <p id="builder-error-title" class="text-sm font-semibold text-red-800">Fix these errors:</p>
+          <ul id="builder-error-list" class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800"></ul>
         </div>
       </form>
       <p id="inspector-empty" class="mt-4 text-sm text-slate-500">No node selected.</p>
@@ -138,7 +150,6 @@
     </div>
   </div>
 </div>
-
 <form style="display:none">{% csrf_token %}</form>
 {{ nodes_data|json_script:"nodes-data" }}
 <script>
@@ -147,7 +158,9 @@
   const CREATE_URL = "{% url 'management-template-node-create' template.id %}";
   const UPDATE_URL_TMPL = "{% url 'management-template-node-update' template.id 0 %}";
   const DELETE_URL_TMPL = "{% url 'management-template-node-delete' template.id 0 %}";
+  const CHECK_ERRORS_URL = "{% url 'management-template-check-errors' template.id %}";
   const SAVE_READY_URL = "{% url 'management-template-save-ready' template.id %}";
+  const TEMPLATES_URL = "{% url 'management-templates' %}";
 </script>
 <script>
   (function () {
@@ -159,6 +172,7 @@
     const previewModal = document.getElementById("fullscreen-preview-modal");
     const previewViewport = document.getElementById("fullscreen-preview-viewport");
     const previewStage = document.getElementById("fullscreen-preview-stage");
+    const deleteConfirmBox = document.getElementById("delete-confirm-box");
     const nodes = new Map();
     let startNodeId = null;
     let selectedNodeId = null;
@@ -168,6 +182,7 @@
     let pointerCanvas = { x: 0, y: 0 };
     let saveTimer = null;
     let toastTimer = null;
+    let validationTimer = null;
 
     function getCsrfToken() {
       const name = "csrftoken=";
@@ -212,6 +227,16 @@
     function renderNodes() {
       canvas.querySelectorAll(".node-card").forEach((n) => n.remove());
       for (const node of nodes.values()) {
+        const hasNextTarget = node.next_id !== null && node.next_id !== undefined && String(node.next_id) !== "";
+        const hasYesTarget = node.yes_id !== null && node.yes_id !== undefined && String(node.yes_id) !== "";
+        const hasNoTarget = node.no_id !== null && node.no_id !== undefined && String(node.no_id) !== "";
+        const endNext = node.ends_survey === true || node.ends_survey === "true" || node.ends_survey === 1 || node.ends_survey === "1";
+        const endYes = node.end_on_yes === true || node.end_on_yes === "true" || node.end_on_yes === 1 || node.end_on_yes === "1";
+        const endNo = node.end_on_no === true || node.end_on_no === "true" || node.end_on_no === 1 || node.end_on_no === "1";
+        const nextConfigured = hasNextTarget || endNext;
+        const yesConfigured = hasYesTarget || endYes;
+        const noConfigured = hasNoTarget || endNo;
+
         const el = document.createElement("div");
         el.className =
           "node-card absolute w-56 rounded-lg border p-2 shadow " +
@@ -230,8 +255,34 @@
           <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
           <div class="mt-2 flex flex-wrap gap-1">
             ${node.question_type === "yes_no"
-              ? '<button type="button" data-connect="yes" class="connect-btn rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">YES</button><button type="button" data-connect="no" class="connect-btn rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">NO</button>'
-              : '<button type="button" data-connect="next" class="connect-btn rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-800">NEXT</button>'}
+              ? `
+                <button
+                  type="button"
+                  data-connect="yes"
+                  class="connect-btn rounded border px-2 py-0.5 text-xs"
+                  style="${yesConfigured ? "background:#15803d;border-color:#15803d;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#166534;"}"
+                >
+                  YES
+                </button>
+                <button
+                  type="button"
+                  data-connect="no"
+                  class="connect-btn rounded border px-2 py-0.5 text-xs"
+                  style="${noConfigured ? "background:#b91c1c;border-color:#b91c1c;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#991b1b;"}"
+                >
+                  NO
+                </button>
+              `
+              : `
+                <button
+                  type="button"
+                  data-connect="next"
+                  class="connect-btn rounded border px-2 py-0.5 text-xs"
+                  style="${nextConfigured ? "background:#0369a1;border-color:#0369a1;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#075985;"}"
+                >
+                  NEXT
+                </button>
+              `}
           </div>
         `;
         el.addEventListener("click", () => {
@@ -433,6 +484,11 @@
       previewModal.classList.remove("block");
     }
 
+    function hideDeleteConfirmBox() {
+      if (!deleteConfirmBox) return;
+      deleteConfirmBox.classList.add("hidden");
+    }
+
     function renderLinks() {
       svg.innerHTML = "";
       for (const node of nodes.values()) {
@@ -475,6 +531,14 @@
         render();
         return;
       }
+      if (hasIncomingFromOtherNode(targetId, source.id)) {
+        connectMode = null;
+        updateConnectStatus();
+        showValidationErrors([`Node #${targetId} already has an incoming connection.`]);
+        showToast("Connection blocked", "error");
+        render();
+        return;
+      }
       if (connectMode.edge === "next") {
         source.next_id = targetId;
         source.ends_survey = false;
@@ -500,6 +564,8 @@
       document.getElementById("node-form").style.display = "";
       const deleteBtn = document.getElementById("btn-delete-node");
       deleteBtn.classList.toggle("hidden", !selectedNodeId);
+      deleteBtn.style.display = selectedNodeId ? "inline-flex" : "none";
+      hideDeleteConfirmBox();
     }
 
     function fillTargetOptions(selectEl, currentNodeId, selectedValue) {
@@ -507,12 +573,24 @@
       for (const n of nodes.values()) {
         if (n.id === currentNodeId) continue;
         if (n.is_forced_start) continue;
+        if (hasIncomingFromOtherNode(n.id, currentNodeId)) continue;
         const opt = document.createElement("option");
         opt.value = String(n.id);
         opt.textContent = `#${n.id} ${n.question_title.slice(0, 40)}`;
         if (selectedValue && Number(selectedValue) === n.id) opt.selected = true;
         selectEl.appendChild(opt);
       }
+    }
+
+    function hasIncomingFromOtherNode(targetId, sourceId) {
+      const targetNum = Number(targetId);
+      for (const n of nodes.values()) {
+        if (n.id === Number(sourceId)) continue;
+        if (Number(n.next_id) === targetNum || Number(n.yes_id) === targetNum || Number(n.no_id) === targetNum) {
+          return true;
+        }
+      }
+      return false;
     }
 
     function fillInspector() {
@@ -540,6 +618,7 @@
       endNoField.checked = !!node.end_on_no;
       forcedLabel.classList.toggle("hidden", !isForcedStart);
       deleteBtn.classList.remove("hidden");
+      deleteBtn.style.display = "inline-flex";
       deleteBtn.disabled = isForcedStart;
       deleteBtn.classList.toggle("opacity-50", isForcedStart);
       deleteBtn.classList.toggle("cursor-not-allowed", isForcedStart);
@@ -554,6 +633,10 @@
       nextField.disabled = !!node.ends_survey || isYesNo;
       yesField.disabled = !isYesNo || !!node.end_on_yes;
       noField.disabled = !isYesNo || !!node.end_on_no;
+      endYesField.disabled = !isYesNo || !!node.yes_id;
+      endNoField.disabled = !isYesNo || !!node.no_id;
+      document.getElementById("block-end-yes").classList.toggle("opacity-60", endYesField.disabled);
+      document.getElementById("block-end-no").classList.toggle("opacity-60", endNoField.disabled);
     }
 
     function normalizeNodeState(node) {
@@ -561,6 +644,8 @@
       if (isYesNo) {
         node.next_id = null;
         node.ends_survey = false;
+        if (node.yes_id) node.end_on_yes = false;
+        if (node.no_id) node.end_on_no = false;
       } else {
         node.yes_id = null;
         node.no_id = null;
@@ -580,8 +665,9 @@
       };
     }
 
-    function showToast(message, tone = "success") {
+    function showToast(message, tone = "success", durationMs = 3000) {
       const toast = document.getElementById("save-toast");
+      if (!toast) return;
       toast.textContent = message;
       toast.classList.remove("bg-emerald-600", "bg-amber-500", "bg-red-600");
       if (tone === "warning") {
@@ -592,10 +678,23 @@
         toast.classList.add("bg-emerald-600");
       }
       toast.classList.remove("hidden");
+      toast.style.display = "block";
+      toast.style.position = "fixed";
+      toast.style.top = "1rem";
+      toast.style.right = "1rem";
+      toast.style.zIndex = "9999";
       if (toastTimer) clearTimeout(toastTimer);
       toastTimer = setTimeout(() => {
         toast.classList.add("hidden");
-      }, 3000);
+        toast.style.display = "none";
+      }, durationMs);
+    }
+
+    function redirectWithToast(message, tone = "success", delayMs = 3000) {
+      showToast(message, tone);
+      setTimeout(() => {
+        window.location.href = TEMPLATES_URL;
+      }, delayMs);
     }
 
     function setStatusLabel(rawStatus) {
@@ -618,12 +717,78 @@
       });
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      showInlineErrors(errors);
+      if (validationTimer) clearTimeout(validationTimer);
+      validationTimer = setTimeout(() => {
+        closeValidationModal();
+        clearInlineErrors();
+      }, 8000);
+    }
+
+    function showInlineErrors(errors) {
+      showInlineStatus("Fix these errors:", errors || [], "error");
+    }
+
+    function showInlineSuccess(message) {
+      showInlineStatus("Validation", [message], "success");
+      setTimeout(() => {
+        clearInlineErrors();
+      }, 6000);
+    }
+
+    function showInlineStatus(title, items, tone = "error") {
+      const box = document.getElementById("builder-error-box");
+      const titleEl = document.getElementById("builder-error-title");
+      const list = document.getElementById("builder-error-list");
+      if (!box || !list || !titleEl) return;
+      box.classList.remove("border-red-200", "bg-red-50", "border-emerald-200", "bg-emerald-50");
+      titleEl.classList.remove("text-red-800", "text-emerald-800");
+      list.classList.remove("text-red-800", "text-emerald-800");
+      if (tone === "success") {
+        box.classList.add("border-emerald-200", "bg-emerald-50");
+        titleEl.classList.add("text-emerald-800");
+        list.classList.add("text-emerald-800");
+      } else {
+        box.classList.add("border-red-200", "bg-red-50");
+        titleEl.classList.add("text-red-800");
+        list.classList.add("text-red-800");
+      }
+      titleEl.textContent = title;
+      list.innerHTML = "";
+      (items || []).forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+      });
+      box.classList.remove("hidden");
+    }
+
+    function clearInlineErrors() {
+      const box = document.getElementById("builder-error-box");
+      const list = document.getElementById("builder-error-list");
+      if (!box || !list) return;
+      list.innerHTML = "";
+      box.classList.add("hidden");
+    }
+
+    function extractErrors(payload) {
+      if (payload && Array.isArray(payload.errors) && payload.errors.length) {
+        return payload.errors;
+      }
+      if (payload && payload.error) {
+        return [payload.error];
+      }
+      return ["Validation failed."];
     }
 
     function closeValidationModal() {
       const modal = document.getElementById("validation-modal");
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      if (validationTimer) {
+        clearTimeout(validationTimer);
+        validationTimer = null;
+      }
     }
 
     function saveSelectedNode() {
@@ -650,8 +815,8 @@
         node.ends_survey = false;
         node.yes_id = yesField.value ? Number(yesField.value) : null;
         node.no_id = noField.value ? Number(noField.value) : null;
-        node.end_on_yes = endYesField.checked;
-        node.end_on_no = endNoField.checked;
+        node.end_on_yes = node.yes_id ? false : endYesField.checked;
+        node.end_on_no = node.no_id ? false : endNoField.checked;
       } else {
         node.next_id = nextField.value ? Number(nextField.value) : null;
         node.ends_survey = endNextField.checked;
@@ -760,6 +925,7 @@
       if (ev.key === "Escape") {
         closeValidationModal();
         closeFullscreenPreview();
+        hideDeleteConfirmBox();
       }
     });
     document.getElementById("btn-full-preview").addEventListener("click", openFullscreenPreview);
@@ -774,33 +940,37 @@
 
     document.getElementById("btn-save-node").addEventListener("click", () => {
       if (!selectedNodeId) {
-        showToast("Draft Saved", "warning");
+        redirectWithToast("Draft Saved", "warning");
         return;
       }
       if (saveTimer) {
         clearTimeout(saveTimer);
         saveTimer = null;
       }
-      saveSelectedNode().then(() => {
-        showToast("Draft Saved", "warning");
-        setStatusLabel("draft");
-        return refreshFromServer();
-      }).then(setCanvasSize);
+      saveSelectedNode()
+        .then(() => {
+          clearInlineErrors();
+          redirectWithToast("Draft Saved", "warning");
+        })
+        .catch((payload) => {
+          const errors = extractErrors(payload);
+          showValidationErrors(errors);
+          showToast("Draft save failed", "error");
+        });
     });
 
     document.getElementById("btn-save-ready").addEventListener("click", () => {
       const finalize = () =>
         postForm(SAVE_READY_URL, {})
           .then(() => {
-            showToast("Template is survey-ready");
-            setStatusLabel("ready");
-            return refreshFromServer();
+            clearInlineErrors();
+            redirectWithToast("Template is survey-ready", "success");
           })
-          .then(setCanvasSize)
           .catch((payload) => {
-            const errors = payload && Array.isArray(payload.errors) ? payload.errors : ["Validation failed."];
+            const errors = extractErrors(payload);
             setStatusLabel("draft");
             showValidationErrors(errors);
+            showToast("Validation errors", "error");
           });
 
       if (!selectedNodeId) {
@@ -811,17 +981,76 @@
         clearTimeout(saveTimer);
         saveTimer = null;
       }
-      saveSelectedNode().then(finalize);
+      saveSelectedNode().then(finalize).catch((payload) => {
+        const errors = extractErrors(payload);
+        showValidationErrors(errors);
+        showToast("Save failed", "error");
+      });
     });
 
-    document.getElementById("btn-delete-node").addEventListener("click", () => {
-      if (!selectedNodeId) return;
-      if (!confirm("Delete selected node?")) return;
-      postForm(deleteUrl(selectedNodeId), {}).then(() => {
-        selectedNodeId = null;
-        return refreshFromServer();
-      }).then(setCanvasSize);
+    document.getElementById("btn-check-errors").addEventListener("click", () => {
+      const validateOnly = () =>
+        postForm(CHECK_ERRORS_URL, {})
+          .then(() => {
+            clearInlineErrors();
+            closeValidationModal();
+            showInlineSuccess("No errors. You can now use Save & Ready.");
+            showToast("No errors. You can now use Save & Ready.", "success", 6000);
+          })
+          .catch((payload) => {
+            const errors = extractErrors(payload);
+            showValidationErrors(errors);
+            showToast("Validation errors", "error");
+          });
+
+      if (!selectedNodeId) {
+        validateOnly();
+        return;
+      }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      saveSelectedNode().then(validateOnly).catch((payload) => {
+        const errors = extractErrors(payload);
+        showValidationErrors(errors);
+        showToast("Save failed", "error");
+      });
     });
+
+    function confirmDeleteNode() {
+      if (!selectedNodeId) return;
+      const nodeId = selectedNodeId;
+      hideDeleteConfirmBox();
+      postForm(deleteUrl(nodeId), {})
+        .then(() => {
+          if (selectedNodeId === nodeId) selectedNodeId = null;
+          showToast("Node deleted", "warning");
+          return refreshFromServer();
+        })
+        .then(setCanvasSize)
+        .catch((payload) => {
+          const errors = extractErrors(payload);
+          showValidationErrors(errors);
+          showToast("Delete failed", "error");
+        });
+    }
+
+    const deleteNodeBtn = document.getElementById("btn-delete-node");
+    if (deleteNodeBtn) {
+      deleteNodeBtn.addEventListener("click", () => {
+        if (!selectedNodeId) return;
+        if (deleteConfirmBox) deleteConfirmBox.classList.remove("hidden");
+      });
+    }
+    const deleteConfirmNoBtn = document.getElementById("delete-confirm-no");
+    if (deleteConfirmNoBtn) {
+      deleteConfirmNoBtn.addEventListener("click", hideDeleteConfirmBox);
+    }
+    const deleteConfirmYesBtn = document.getElementById("delete-confirm-yes");
+    if (deleteConfirmYesBtn) {
+      deleteConfirmYesBtn.addEventListener("click", confirmDeleteNode);
+    }
 
     const initial = JSON.parse(document.getElementById("nodes-data").textContent);
     for (const n of initial) nodes.set(n.id, n);
