@@ -100,7 +100,7 @@ class SurveyTemplateForm(forms.ModelForm):
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ["company_name", "address", "contact_person", "email"]
+        fields = ["company_name", "address", "contact_person", "email", "telephone"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

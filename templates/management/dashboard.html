@@ -36,8 +36,8 @@
 
   <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Saved Again</p>
-      <p class="mt-2 text-3xl font-bold text-amber-600">{{ sessions_saved_again }}</p>
+      <p class="text-sm text-slate-500">Generated Links</p>
+      <p class="mt-2 text-3xl font-bold text-amber-600">{{ generated_links_count }}</p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
       <p class="text-sm text-slate-500">Closed</p>
@@ -54,7 +54,7 @@
             <th class="py-2">Customer</th>
             <th class="py-2">Template</th>
             <th class="py-2">Status</th>
-            <th class="py-2">Saved Again</th>
+            <th class="py-2">Closed</th>
             <th class="py-2">Survey Link</th>
           </tr>
         </thead>
@@ -63,7 +63,7 @@
           <tr class="border-t border-slate-200">
             <td class="py-2">{{ session.customer.company_name }}</td>
             <td class="py-2">{{ session.template.name }}</td>
-            <td class="py-2">{{ session.get_status_display }}</td>
+            <td class="py-2">{% if session.status == 'saved_again' %}Closed Again{% else %}{{ session.get_status_display }}{% endif %}</td>
             <td class="py-2">{{ session.saved_again_count }}</td>
             <td class="py-2"><a class="text-blue-700 underline" href="{% url 'survey-by-token' session.token %}">Open</a></td>
           </tr>

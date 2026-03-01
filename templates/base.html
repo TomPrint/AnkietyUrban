@@ -31,9 +31,9 @@
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Dashboard</a>
           <a class="uv-nav-link" href="{% url 'management-users' %}">Users</a>
           <a class="uv-nav-link" href="{% url 'management-customers' %}">Customers</a>
-          <a class="uv-nav-link" href="{% url 'management-assignments' %}">Survey</a>
           <a class="uv-nav-link" href="{% url 'management-questions' %}">Questions</a>
           <a class="uv-nav-link" href="{% url 'management-templates' %}">Templates</a>
+          <a class="uv-nav-link" href="{% url 'management-assignments' %}">Survey</a>
           <div class="flex flex-col items-end gap-1">
             <form id="logout-form" method="post" action="{% url 'logout' %}" class="m-0">
               {% csrf_token %}
@@ -51,9 +51,9 @@
             <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Dashboard</a>
             <a class="uv-nav-link w-full" href="{% url 'management-users' %}">Users</a>
             <a class="uv-nav-link w-full" href="{% url 'management-customers' %}">Customers</a>
-            <a class="uv-nav-link w-full" href="{% url 'management-assignments' %}">Survey</a>
             <a class="uv-nav-link w-full" href="{% url 'management-questions' %}">Questions</a>
             <a class="uv-nav-link w-full" href="{% url 'management-templates' %}">Templates</a>
+            <a class="uv-nav-link w-full" href="{% url 'management-assignments' %}">Survey</a>
             <button type="button" class="uv-nav-link uv-nav-link-logout w-full" onclick="document.getElementById('logout-form').submit();">Logout</button>
             <div class="pt-1 text-center text-xs italic text-[color:var(--uv-navy)]">Zalogowany: {{ request.user.username }}</div>
           </div>

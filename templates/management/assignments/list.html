@@ -79,48 +79,64 @@
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
     <h2 class="text-xl font-semibold">Survey Portal</h2>
+    <form method="get" class="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+      <input
+        type="search"
+        name="q"
+        value="{{ q }}"
+        placeholder="Search by customer, template, status, or token"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2"
+      >
+      <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit" aria-label="Search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+        </svg>
+      </button>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-center" href="{% url 'management-assignments' %}">Reset</a>
+    </form>
     <div class="mt-4 overflow-x-auto">
       <table class="survey-portal-table min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
             <th>
-              <a class="survey-sort-link {% if sort == 'customer' %}active{% endif %}" href="?sort=customer&dir={% if sort == 'customer' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'customer' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=customer&dir={% if sort == 'customer' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Customer
                 {% if sort == 'customer' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'template' %}active{% endif %}" href="?sort=template&dir={% if sort == 'template' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'template' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=template&dir={% if sort == 'template' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Template
                 {% if sort == 'template' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'status' %}active{% endif %}" href="?sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'status' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Status
                 {% if sort == 'status' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'first_open' %}active{% endif %}" href="?sort=first_open&dir={% if sort == 'first_open' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'first_open' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=first_open&dir={% if sort == 'first_open' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 First Open
                 {% if sort == 'first_open' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'first_save' %}active{% endif %}" href="?sort=first_save&dir={% if sort == 'first_save' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'first_save' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=first_save&dir={% if sort == 'first_save' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 First Save
                 {% if sort == 'first_save' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'saved_again' %}active{% endif %}" href="?sort=saved_again&dir={% if sort == 'saved_again' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'saved_again' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=saved_again&dir={% if sort == 'saved_again' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Saved Again
                 {% if sort == 'saved_again' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
-              <a class="survey-sort-link {% if sort == 'link' %}active{% endif %}" href="?sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+              <a class="survey-sort-link {% if sort == 'link' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Link
                 {% if sort == 'link' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
@@ -155,7 +171,7 @@
                 <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">Inactive</span>
               {% endif %}
             </td>
-            <td><a class="text-blue-700 underline" href="{% url 'survey-by-token' s.token %}" target="_blank">Open</a></td>
+            <td><a class="text-blue-700 underline" href="{% url 'survey-by-token' s.token %}" target="_blank">Link</a></td>
             <td>
               <div class="survey-actions">
                 <a class="survey-action-btn rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' s.id %}">Details</a>

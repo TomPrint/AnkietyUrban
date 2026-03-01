@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
@@ -350,8 +352,13 @@ def management_dashboard(request: HttpRequest) -> HttpResponse:
         "questions_count": Question.objects.filter(is_system=False).count(),
         "templates_count": SurveyTemplate.objects.count(),
         "sessions_open": SurveySession.objects.filter(status=SurveySession.Status.OPEN).count(),
-        "sessions_saved_again": SurveySession.objects.filter(status=SurveySession.Status.SAVED_AGAIN).count(),
-        "sessions_closed": SurveySession.objects.filter(status=SurveySession.Status.CLOSED).count(),
+        "generated_links_count": SurveySession.objects.count(),
+        "sessions_closed": SurveySession.objects.filter(
+            status__in=[SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN]
+        )
+        .values("id")
+        .distinct()
+        .count(),
         "latest_sessions": SurveySession.objects.select_related("customer", "template")[:10],
     }
     return render(request, "management/dashboard.html", context)
@@ -458,11 +465,25 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
     if direction == "desc":
         order_field = f"-{order_field}"
 
-    sessions = SurveySession.objects.select_related("customer", "template").order_by(order_field, "-updated_at")
+    search_query = request.GET.get("q", "").strip()
+    sessions = SurveySession.objects.select_related("customer", "template")
+    if search_query:
+        filters = (
+            Q(customer__company_name__icontains=search_query)
+            | Q(template__name__icontains=search_query)
+            | Q(status__icontains=search_query)
+        )
+        try:
+            token_value = uuid.UUID(search_query)
+            filters = filters | Q(token=token_value)
+        except ValueError:
+            pass
+        sessions = sessions.filter(filters)
+    sessions = sessions.order_by(order_field, "-updated_at")
     return render(
         request,
         "management/assignments/list.html",
-        {"form": form, "sessions": sessions, "sort": sort, "dir": direction},
+        {"form": form, "sessions": sessions, "sort": sort, "dir": direction, "q": search_query},
     )
 
 
