@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Template Preview | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-[1400px] px-4 py-6">
+  <header class="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Template Preview (Read-only)</p>
+      <h1 class="text-2xl font-bold">{{ template.name }}</h1>
+      <p class="mt-1 text-xs font-semibold {% if template.status == 'ready' %}text-emerald-700{% else %}text-amber-700{% endif %}">
+        Status: {{ template.get_status_display }}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btn-full-preview" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Fullscreen Preview</button>
+      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-templates' %}">Back to Templates</a>
+    </div>
+  </header>
+
+  <section class="rounded-xl bg-white p-2 shadow">
+    <div id="preview-canvas" class="relative h-[75vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
+      <svg id="preview-link-layer" class="pointer-events-none absolute inset-0 h-full w-full"></svg>
+    </div>
+  </section>
+</main>
+
+<div id="fullscreen-preview-modal" class="hidden bg-slate-900/90 p-4" style="display:none; position:fixed; inset:0; z-index:9999;">
+  <div class="flex h-full flex-col rounded-xl bg-slate-100 p-3">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Template Tree Preview</h2>
+      <button id="fullscreen-preview-close" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Close</button>
+    </div>
+    <div id="fullscreen-preview-viewport" class="relative flex-1 overflow-auto rounded-lg border border-slate-300 bg-white p-4">
+      <div id="fullscreen-preview-stage" class="relative"></div>
+    </div>
+  </div>
+</div>
+
+{{ nodes_data|json_script:"nodes-data" }}
+<script>
+  (function () {
+    const canvas = document.getElementById("preview-canvas");
+    const svg = document.getElementById("preview-link-layer");
+    const previewModal = document.getElementById("fullscreen-preview-modal");
+    const previewViewport = document.getElementById("fullscreen-preview-viewport");
+    const previewStage = document.getElementById("fullscreen-preview-stage");
+    const nodes = new Map();
+    const initial = JSON.parse(document.getElementById("nodes-data").textContent);
+    let startNodeId = initial.find((n) => n.is_start)?.id || null;
+
+    for (const n of initial) nodes.set(n.id, n);
+
+    function nodeCenter(node) {
+      return { x: node.x + 112, y: node.y + 34 };
+    }
+
+    function drawLine(fromNode, toNode, color, label) {
+      const a = nodeCenter(fromNode);
+      const b = nodeCenter(toNode);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", b.x);
+      line.setAttribute("y2", b.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      svg.appendChild(line);
+
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", (a.x + b.x) / 2);
+      text.setAttribute("y", (a.y + b.y) / 2 - 4);
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", color);
+      text.textContent = label;
+      svg.appendChild(text);
+    }
+
+    function renderNodes() {
+      canvas.querySelectorAll(".node-card").forEach((n) => n.remove());
+      for (const node of nodes.values()) {
+        const el = document.createElement("div");
+        el.className = "node-card absolute w-56 rounded-lg border border-slate-300 bg-white p-2 shadow";
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+        el.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
+              <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
+            </div>
+            ${node.is_forced_start ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">FORCED START</span>' : node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
+          </div>
+          <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
+        `;
+        canvas.appendChild(el);
+      }
+    }
+
+    function renderLinks() {
+      svg.innerHTML = "";
+      for (const node of nodes.values()) {
+        if (node.question_type === "yes_no") {
+          if (node.yes_id && nodes.has(node.yes_id)) {
+            drawLine(node, nodes.get(node.yes_id), "#16a34a", "YES");
+          }
+          if (node.no_id && nodes.has(node.no_id)) {
+            drawLine(node, nodes.get(node.no_id), "#dc2626", "NO");
+          }
+        } else if (node.next_id && nodes.has(node.next_id)) {
+          drawLine(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+        }
+      }
+    }
+
+    function setCanvasSize() {
+      let maxX = 1200;
+      let maxY = 700;
+      for (const n of nodes.values()) {
+        maxX = Math.max(maxX, n.x + 300);
+        maxY = Math.max(maxY, n.y + 150);
+      }
+      svg.style.width = `${maxX}px`;
+      svg.style.height = `${maxY}px`;
+      svg.setAttribute("viewBox", `0 0 ${maxX} ${maxY}`);
+    }
+
+    function buildFullscreenPreview() {
+      previewStage.innerHTML = "";
+      if (!nodes.size) return;
+
+      const cardWidth = 224;
+      const cardHeight = 92;
+      const pad = 20;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      for (const node of nodes.values()) {
+        minX = Math.min(minX, node.x);
+        minY = Math.min(minY, node.y);
+        maxX = Math.max(maxX, node.x + cardWidth);
+        maxY = Math.max(maxY, node.y + cardHeight);
+      }
+
+      const stageWidth = Math.max(1, maxX - minX + pad * 2);
+      const stageHeight = Math.max(1, maxY - minY + pad * 2);
+      previewStage.style.width = `${stageWidth}px`;
+      previewStage.style.height = `${stageHeight}px`;
+
+      const psvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      psvg.classList.add("pointer-events-none", "absolute", "inset-0");
+      psvg.setAttribute("width", String(stageWidth));
+      psvg.setAttribute("height", String(stageHeight));
+      psvg.setAttribute("viewBox", `0 0 ${stageWidth} ${stageHeight}`);
+      previewStage.appendChild(psvg);
+
+      function adjustedCenter(node) {
+        return {
+          x: node.x - minX + pad + 112,
+          y: node.y - minY + pad + 32,
+        };
+      }
+
+      function drawPreviewEdge(fromNode, toNode, color, label) {
+        const a = adjustedCenter(fromNode);
+        const b = adjustedCenter(toNode);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", "2");
+        psvg.appendChild(line);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", String((a.x + b.x) / 2));
+        text.setAttribute("y", String((a.y + b.y) / 2 - 4));
+        text.setAttribute("font-size", "10");
+        text.setAttribute("fill", color);
+        text.textContent = label;
+        psvg.appendChild(text);
+      }
+
+      for (const node of nodes.values()) {
+        if (node.question_type === "yes_no") {
+          if (node.yes_id && nodes.has(node.yes_id)) drawPreviewEdge(node, nodes.get(node.yes_id), "#16a34a", "YES");
+          if (node.no_id && nodes.has(node.no_id)) drawPreviewEdge(node, nodes.get(node.no_id), "#dc2626", "NO");
+        } else if (node.next_id && nodes.has(node.next_id)) {
+          drawPreviewEdge(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+        }
+      }
+
+      for (const node of nodes.values()) {
+        const card = document.createElement("div");
+        card.className = "absolute w-56 rounded-lg border border-slate-300 bg-white p-2 shadow";
+        card.style.left = `${node.x - minX + pad}px`;
+        card.style.top = `${node.y - minY + pad}px`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
+              <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
+            </div>
+            ${node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
+          </div>
+          <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
+        `;
+        previewStage.appendChild(card);
+      }
+    }
+
+    function openFullscreenPreview() {
+      if (!previewModal) return;
+      previewModal.classList.remove("hidden");
+      previewModal.classList.add("block");
+      previewModal.style.display = "block";
+      previewModal.style.position = "fixed";
+      previewModal.style.top = "0";
+      previewModal.style.right = "0";
+      previewModal.style.bottom = "0";
+      previewModal.style.left = "0";
+      previewModal.style.zIndex = "9999";
+      buildFullscreenPreview();
+      if (previewViewport) {
+        previewViewport.scrollTop = 0;
+        previewViewport.scrollLeft = 0;
+      }
+    }
+
+    function closeFullscreenPreview() {
+      if (!previewModal) return;
+      previewModal.classList.add("hidden");
+      previewModal.classList.remove("block");
+      previewModal.style.display = "none";
+    }
+
+    const fullPreviewBtn = document.getElementById("btn-full-preview");
+    const fullPreviewCloseBtn = document.getElementById("fullscreen-preview-close");
+    if (fullPreviewBtn) fullPreviewBtn.addEventListener("click", openFullscreenPreview);
+    if (fullPreviewCloseBtn) fullPreviewCloseBtn.addEventListener("click", closeFullscreenPreview);
+    if (previewModal) {
+      previewModal.addEventListener("click", (ev) => {
+        if (ev.target === previewModal) closeFullscreenPreview();
+      });
+    }
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeFullscreenPreview();
+    });
+
+    renderNodes();
+    renderLinks();
+    setCanvasSize();
+  })();
+</script>
+{% endblock %}

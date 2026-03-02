@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -10,6 +11,8 @@ class Customer(models.Model):
     contact_person = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     telephone = models.CharField(max_length=50, blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -17,6 +20,11 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.company_name
+
+    def archive(self):
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=["is_archived", "archived_at"])
 
 
 class Question(models.Model):
@@ -34,6 +42,8 @@ class Question(models.Model):
     complex_items = models.JSONField(default=list, blank=True)
     required = models.BooleanField(default=True)
     is_system = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -42,6 +52,11 @@ class Question(models.Model):
 
     def __str__(self):
         return self.title
+
+    def archive(self):
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=["is_archived", "archived_at", "updated_at"])
 
 
 class QuestionChoice(models.Model):
@@ -63,6 +78,8 @@ class SurveyTemplate(models.Model):
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     start_node = models.ForeignKey(
         "TemplateNode",
@@ -79,6 +96,11 @@ class SurveyTemplate(models.Model):
 
     def __str__(self):
         return self.name
+
+    def archive(self):
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=["is_archived", "archived_at", "updated_at"])
 
 
 class TemplateNode(models.Model):
@@ -136,8 +158,18 @@ class SurveySession(models.Model):
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="survey_sessions")
     template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, related_name="survey_sessions")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_survey_sessions",
+    )
+    created_by_name = models.CharField(max_length=150, blank=True, default="")
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     is_link_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
     )
@@ -146,6 +178,9 @@ class SurveySession(models.Model):
     current_node = models.ForeignKey(
         TemplateNode, on_delete=models.SET_NULL, null=True, blank=True, related_name="active_sessions"
     )
+    first_opened_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
+    active_seconds = models.PositiveIntegerField(default=0)
     started_at = models.DateTimeField(auto_now_add=True)
     first_saved_at = models.DateTimeField(null=True, blank=True)
     last_reopened_at = models.DateTimeField(null=True, blank=True)
@@ -180,6 +215,25 @@ class SurveySession(models.Model):
         self.saved_again_count += 1
         self.last_saved_again_at = now
         self.submitted_at = now
+
+    def archive(self):
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.is_link_active = False
+        self.save(update_fields=["is_archived", "archived_at", "is_link_active", "updated_at"])
+
+    def restore_from_archive(self):
+        self.is_archived = False
+        self.archived_at = None
+        self.is_link_active = False
+        self.save(update_fields=["is_archived", "archived_at", "is_link_active", "updated_at"])
+
+
+class ArchivedSurveySession(SurveySession):
+    class Meta:
+        proxy = True
+        verbose_name = "Archived Survey"
+        verbose_name_plural = "Archived Surveys"
 
 
 class SurveyAnswer(models.Model):
@@ -216,3 +270,24 @@ class SurveySubmissionSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.session} | v{self.version_number}"
+
+
+class SurveySessionEvent(models.Model):
+    class EventType(models.TextChoices):
+        LINK_OPENED = "link_opened", "Link opened"
+        QUESTION_VIEWED = "question_viewed", "Question viewed"
+        ANSWER_SAVED = "answer_saved", "Answer saved"
+        SURVEY_SUBMITTED = "survey_submitted", "Survey submitted"
+        SURVEY_REOPENED = "survey_reopened", "Survey reopened"
+
+    session = models.ForeignKey(SurveySession, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    node = models.ForeignKey(TemplateNode, on_delete=models.SET_NULL, null=True, blank=True, related_name="events")
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.session} | {self.event_type} | {self.created_at}"

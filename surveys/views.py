@@ -8,11 +8,21 @@ from django.db.models import Count, Max, Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
 
 from .forms import CustomerForm, DynamicQuestionForm, QuestionManageForm, SurveyAssignmentForm, SurveyTemplateForm, UserManageForm
-from .models import Customer, Question, SurveyAnswer, SurveySession, SurveySubmissionSnapshot, SurveyTemplate, TemplateNode
+from .models import (
+    Customer,
+    Question,
+    SurveyAnswer,
+    SurveySession,
+    SurveySessionEvent,
+    SurveySubmissionSnapshot,
+    SurveyTemplate,
+    TemplateNode,
+)
 
 SYSTEM_START_QUESTION_TITLE = "Imie i nazwisko osoby wypelniajacej ankiete"
 SYSTEM_START_QUESTION_HELP = "Podaj imie i nazwisko."
@@ -25,6 +35,13 @@ def _start_node(template: SurveyTemplate):
 
 def _template_is_live(template: SurveyTemplate) -> bool:
     return template.survey_sessions.exists()
+
+
+def _normalize_live_templates_to_ready():
+    SurveyTemplate.objects.filter(
+        status=SurveyTemplate.Status.DRAFT,
+        survey_sessions__isnull=False,
+    ).update(status=SurveyTemplate.Status.READY)
 
 
 def _get_or_create_system_start_question() -> Question:
@@ -138,6 +155,9 @@ def _validate_template_graph(template: SurveyTemplate):
         return errors
 
     for n in nodes:
+        if n.question.is_archived:
+            errors.append(f"Node #{n.id}: question is archived. Replace it before saving as Ready.")
+            continue
         if n.question.question_type == Question.QuestionType.YES_NO:
             has_yes = bool(n.end_on_yes or n.yes_node_id)
             has_no = bool(n.end_on_no or n.no_node_id)
@@ -278,6 +298,62 @@ def _ensure_active_session(session: SurveySession):
         )
 
 
+def _touch_session_activity(session: SurveySession) -> bool:
+    now = timezone.now()
+    just_opened = False
+    update_fields = ["last_activity_at", "updated_at"]
+    if session.first_opened_at is None:
+        session.first_opened_at = now
+        just_opened = True
+        update_fields.append("first_opened_at")
+    if session.last_activity_at is not None:
+        delta = max(0, int((now - session.last_activity_at).total_seconds()))
+        # Cap a single inactivity window to avoid counting long idle tab time as active usage.
+        capped_delta = min(delta, 300)
+        if capped_delta > 0:
+            session.active_seconds += capped_delta
+            update_fields.append("active_seconds")
+    session.last_activity_at = now
+    session.save(update_fields=update_fields)
+    return just_opened
+
+
+def _log_session_event(
+    session: SurveySession,
+    event_type: str,
+    *,
+    node: TemplateNode | None = None,
+    request: HttpRequest | None = None,
+    details: dict | None = None,
+):
+    payload = details.copy() if details else {}
+    if request is not None:
+        client_ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")
+        if client_ip:
+            payload["ip"] = client_ip
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        if user_agent:
+            payload["user_agent"] = user_agent[:400]
+    SurveySessionEvent.objects.create(
+        session=session,
+        event_type=event_type,
+        node=node,
+        details=payload,
+    )
+
+
+def _format_seconds(total_seconds: int) -> str:
+    seconds = max(0, int(total_seconds))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    if h:
+        return f"{h}h {m}m {s}s"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+
 def _is_session_completed(session: SurveySession) -> bool:
     return session.status in (SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN)
 
@@ -387,25 +463,31 @@ def _capture_submission_snapshot(session: SurveySession):
 @staff_required
 def management_dashboard(request: HttpRequest) -> HttpResponse:
     context = {
-        "customers_count": Customer.objects.count(),
-        "questions_count": Question.objects.filter(is_system=False).count(),
-        "templates_count": SurveyTemplate.objects.count(),
-        "sessions_open": SurveySession.objects.filter(status=SurveySession.Status.OPEN).count(),
-        "generated_links_count": SurveySession.objects.count(),
+        "customers_count": Customer.objects.filter(is_archived=False).count(),
+        "questions_count": Question.objects.filter(is_system=False, is_archived=False).count(),
+        "templates_count": SurveyTemplate.objects.filter(is_archived=False).count(),
+        "sessions_open": SurveySession.objects.filter(status=SurveySession.Status.OPEN, is_archived=False).count(),
+        "generated_links_count": SurveySession.objects.filter(is_archived=False).count(),
         "sessions_closed": SurveySession.objects.filter(
-            status__in=[SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN]
+            status__in=[SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN],
+            is_archived=False,
         )
         .values("id")
         .distinct()
         .count(),
-        "latest_sessions": SurveySession.objects.select_related("customer", "template")[:10],
+        "latest_sessions": SurveySession.objects.select_related("customer", "template").filter(is_archived=False)[:10],
     }
     return render(request, "management/dashboard.html", context)
 
 
 @staff_required
 def user_list(request: HttpRequest) -> HttpResponse:
-    users = User.objects.order_by("username")
+    users = User.objects.annotate(
+        generated_links_count=Count(
+            "created_survey_sessions",
+            filter=Q(created_survey_sessions__is_archived=False),
+        )
+    ).order_by("username")
     return render(request, "management/users/list.html", {"users": users})
 
 
@@ -441,7 +523,7 @@ def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
 
 @staff_required
 def customer_list(request: HttpRequest) -> HttpResponse:
-    customers = Customer.objects.all()
+    customers = Customer.objects.filter(is_archived=False)
     return render(request, "management/customers/list.html", {"customers": customers})
 
 
@@ -456,7 +538,7 @@ def customer_create(request: HttpRequest) -> HttpResponse:
 
 @staff_required
 def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
-    customer = get_object_or_404(Customer, pk=customer_id)
+    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
     form = CustomerForm(request.POST or None, instance=customer)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -467,8 +549,8 @@ def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
 @staff_required
 @require_POST
 def customer_delete(request: HttpRequest, customer_id: int) -> HttpResponse:
-    customer = get_object_or_404(Customer, pk=customer_id)
-    customer.delete()
+    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
+    customer.archive()
     return redirect("management-customers")
 
 
@@ -479,6 +561,9 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
         session = form.save(commit=False)
         _ensure_forced_start_node(session.template)
         _start_node_or_404(session.template, require_ready=True)
+        if request.user.is_authenticated:
+            session.created_by = request.user
+            session.created_by_name = request.user.username
         session.status = SurveySession.Status.OPEN
         session.current_node = _start_node(session.template)
         session.save()
@@ -505,7 +590,7 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
         order_field = f"-{order_field}"
 
     search_query = request.GET.get("q", "").strip()
-    sessions = SurveySession.objects.select_related("customer", "template")
+    sessions = SurveySession.objects.select_related("customer", "template").filter(is_archived=False)
     if search_query:
         filters = (
             Q(customer__company_name__icontains=search_query)
@@ -529,7 +614,7 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
 @staff_required
 @require_POST
 def survey_link_toggle(request: HttpRequest, session_id: int) -> HttpResponse:
-    session = get_object_or_404(SurveySession, pk=session_id)
+    session = get_object_or_404(SurveySession, pk=session_id, is_archived=False)
     action = request.POST.get("action")
     if action == "deactivate":
         session.is_link_active = False
@@ -542,21 +627,35 @@ def survey_link_toggle(request: HttpRequest, session_id: int) -> HttpResponse:
 @staff_required
 @require_POST
 def survey_session_delete(request: HttpRequest, session_id: int) -> HttpResponse:
-    session = get_object_or_404(SurveySession, pk=session_id)
-    session.delete()
+    session = get_object_or_404(SurveySession, pk=session_id, is_archived=False)
+    session.archive()
     return redirect("management-assignments")
 
 
 @staff_required
 def survey_session_detail(request: HttpRequest, session_id: int) -> HttpResponse:
     session = get_object_or_404(
-        SurveySession.objects.select_related("customer", "template"),
+        SurveySession.objects.select_related("customer", "template", "current_node", "current_node__question"),
         pk=session_id,
+        is_archived=False,
     )
     snapshots = session.snapshots.all()
+    total_nodes = session.template.nodes.count()
+    answered_nodes = session.answers.values("node_id").distinct().count()
+    is_completed = session.status in (SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN)
+    completion_percent = 100 if is_completed else int((answered_nodes / total_nodes) * 100) if total_nodes else 0
+    drop_off_question = session.current_node.display_title if session.current_node_id else "-"
+    drop_off_time = session.last_activity_at if not is_completed and session.current_node_id else None
+    activity_events = session.events.select_related("node")[:200]
     context = {
         "session": session,
         "snapshots": snapshots,
+        "link_opened": bool(session.first_opened_at),
+        "active_time_display": _format_seconds(session.active_seconds),
+        "completion_percent": completion_percent,
+        "drop_off_question": drop_off_question,
+        "drop_off_time": drop_off_time,
+        "activity_events": activity_events,
     }
     return render(request, "management/assignments/detail.html", context)
 
@@ -577,7 +676,11 @@ def question_list(request: HttpRequest) -> HttpResponse:
     if direction not in ("asc", "desc"):
         direction = "desc"
 
-    questions = Question.objects.filter(is_system=False).prefetch_related("choices").annotate(choices_count=Count("choices"))
+    questions = (
+        Question.objects.filter(is_system=False, is_archived=False)
+        .prefetch_related("choices")
+        .annotate(choices_count=Count("choices"))
+    )
     if search_query:
         questions = questions.filter(
             Q(title__icontains=search_query)
@@ -608,7 +711,7 @@ def question_create(request: HttpRequest) -> HttpResponse:
 
 @staff_required
 def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
-    question = get_object_or_404(Question, pk=question_id, is_system=False)
+    question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
     form = QuestionManageForm(request.POST or None, instance=question)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -618,7 +721,7 @@ def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
 
 @staff_required
 def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
-    question = get_object_or_404(Question, pk=question_id, is_system=False)
+    question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
     templates = (
         SurveyTemplate.objects.filter(nodes__question=question)
         .distinct()
@@ -645,20 +748,62 @@ def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
 @staff_required
 @require_POST
 def question_delete(request: HttpRequest, question_id: int) -> HttpResponse:
-    question = get_object_or_404(Question, pk=question_id, is_system=False)
-    question.delete()
+    question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
+    question.archive()
     return redirect("management-questions")
 
 
 @staff_required
 def template_list(request: HttpRequest) -> HttpResponse:
-    templates = SurveyTemplate.objects.prefetch_related("nodes").annotate(live_sessions_count=Count("survey_sessions")).all()
-    return render(request, "management/templates/list.html", {"templates": templates})
+    _normalize_live_templates_to_ready()
+    search_query = request.GET.get("q", "").strip()
+    sort_map = {
+        "name": "name",
+        "status": "status",
+        "nodes": "nodes_count",
+        "updated": "updated_at",
+        "live": "live_sessions_count",
+    }
+    sort = request.GET.get("sort", "live")
+    direction = request.GET.get("dir", "desc")
+    if sort not in sort_map:
+        sort = "live"
+    if direction not in ("asc", "desc"):
+        direction = "desc"
+
+    templates = (
+        SurveyTemplate.objects.filter(is_archived=False)
+        .prefetch_related("nodes")
+        .annotate(
+            live_sessions_count=Count("survey_sessions", distinct=True),
+            nodes_count=Count("nodes", distinct=True),
+        )
+    )
+    if search_query:
+        templates = templates.filter(
+            Q(name__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(status__icontains=search_query)
+        )
+
+    order_by = sort_map[sort]
+    if direction == "desc":
+        order_by = f"-{order_by}"
+    templates = templates.order_by(order_by, "-live_sessions_count", "-updated_at")
+    return render(
+        request,
+        "management/templates/list.html",
+        {"templates": templates, "q": search_query, "sort": sort, "dir": direction},
+    )
 
 
 @staff_required
 def template_copy(request: HttpRequest) -> HttpResponse:
-    templates = SurveyTemplate.objects.annotate(live_sessions_count=Count("survey_sessions")).order_by("name")
+    templates = (
+        SurveyTemplate.objects.filter(is_archived=False)
+        .annotate(live_sessions_count=Count("survey_sessions"))
+        .order_by("name")
+    )
     initial_source = request.GET.get("source", "")
 
     if request.method == "POST":
@@ -674,7 +819,17 @@ def template_copy(request: HttpRequest) -> HttpResponse:
                 {"templates": templates, "initial_source": initial_source},
             )
 
-        source_template = get_object_or_404(SurveyTemplate, pk=source_id)
+        source_template = get_object_or_404(SurveyTemplate, pk=source_id, is_archived=False)
+        if source_template.nodes.filter(question__is_archived=True).exists():
+            messages.error(
+                request,
+                "Source template contains archived questions. Update the source template before copying.",
+            )
+            return render(
+                request,
+                "management/templates/copy.html",
+                {"templates": templates, "initial_source": source_id},
+            )
         if not name:
             name = f"{source_template.name} (copy)"
 
@@ -742,7 +897,7 @@ def template_create(request: HttpRequest) -> HttpResponse:
 
 @staff_required
 def template_edit(request: HttpRequest, template_id: int) -> HttpResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         messages.error(request, "Template is live (assigned to surveys) and cannot be edited.")
         return redirect("management-templates")
@@ -756,23 +911,20 @@ def template_edit(request: HttpRequest, template_id: int) -> HttpResponse:
 @staff_required
 @require_POST
 def template_delete(request: HttpRequest, template_id: int) -> HttpResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
-    if _template_is_live(template):
-        messages.error(request, "Template is live (assigned to surveys) and cannot be deleted.")
-        return redirect("management-templates")
-    template.delete()
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
+    template.archive()
     return redirect("management-templates")
 
 
 @staff_required
 def template_builder(request: HttpRequest, template_id: int) -> HttpResponse:
-    template = get_object_or_404(SurveyTemplate.objects.select_related("start_node"), pk=template_id)
+    template = get_object_or_404(SurveyTemplate.objects.select_related("start_node"), pk=template_id, is_archived=False)
     if _template_is_live(template):
         messages.error(request, "Template is live (assigned to surveys). Builder is locked.")
         return redirect("management-templates")
     _ensure_forced_start_node(template)
     nodes = list(template.nodes.select_related("question", "next_node", "yes_node", "no_node").all())
-    questions = list(Question.objects.filter(is_system=False).prefetch_related("choices").all())
+    questions = list(Question.objects.filter(is_system=False, is_archived=False).prefetch_related("choices").all())
 
     context = {
         "template": template,
@@ -783,9 +935,21 @@ def template_builder(request: HttpRequest, template_id: int) -> HttpResponse:
 
 
 @staff_required
+def template_preview(request: HttpRequest, template_id: int) -> HttpResponse:
+    template = get_object_or_404(SurveyTemplate.objects.select_related("start_node"), pk=template_id, is_archived=False)
+    _ensure_forced_start_node(template)
+    nodes = list(template.nodes.select_related("question", "next_node", "yes_node", "no_node").all())
+    context = {
+        "template": template,
+        "nodes_data": [_serialize_node(template, n) for n in nodes],
+    }
+    return render(request, "management/templates/preview.html", context)
+
+
+@staff_required
 @require_GET
 def template_builder_data(request: HttpRequest, template_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     _ensure_forced_start_node(template)
@@ -803,14 +967,14 @@ def template_builder_data(request: HttpRequest, template_id: int) -> JsonRespons
 @staff_required
 @require_POST
 def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     _ensure_forced_start_node(template)
     question_id = request.POST.get("question_id")
     x = int(request.POST.get("x", 80))
     y = int(request.POST.get("y", 80))
-    question = get_object_or_404(Question, pk=question_id)
+    question = get_object_or_404(Question, pk=question_id, is_archived=False)
     node = TemplateNode.objects.create(template=template, question=question, x=x, y=y)
     template.status = SurveyTemplate.Status.DRAFT
     if template.start_node_id is None:
@@ -824,7 +988,7 @@ def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse
 @staff_required
 @require_POST
 def template_node_update(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     _ensure_forced_start_node(template)
@@ -901,7 +1065,7 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
 @staff_required
 @require_POST
 def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     node = get_object_or_404(TemplateNode, pk=node_id, template=template)
@@ -934,7 +1098,7 @@ def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -
 @staff_required
 @require_POST
 def template_check_errors(request: HttpRequest, template_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     _ensure_forced_start_node(template)
@@ -947,7 +1111,7 @@ def template_check_errors(request: HttpRequest, template_id: int) -> JsonRespons
 @staff_required
 @require_POST
 def template_save_ready(request: HttpRequest, template_id: int) -> JsonResponse:
-    template = get_object_or_404(SurveyTemplate, pk=template_id)
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
         return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
     _ensure_forced_start_node(template)
@@ -974,13 +1138,19 @@ class SurveyByTokenView(View):
 
     def get(self, request: HttpRequest, token: str) -> HttpResponse:
         session = self.get_object(token)
+        just_opened = _touch_session_activity(session)
+        if just_opened:
+            _log_session_event(session, SurveySessionEvent.EventType.LINK_OPENED, request=request)
         if not session.is_link_active:
+            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+        if session.is_archived:
             return render(request, "survey/link_inactive.html", {"session": session}, status=403)
         wants_edit = request.GET.get("edit") == "1"
         if _is_session_completed(session) and not wants_edit:
             return redirect("survey-thanks", token=token)
         if wants_edit:
             _ensure_active_session(session)
+            _log_session_event(session, SurveySessionEvent.EventType.SURVEY_REOPENED, request=request)
         # Existing token links should remain usable even if template later moves back to draft.
         start = _start_node_or_404(session.template, require_ready=False)
 
@@ -989,6 +1159,7 @@ class SurveyByTokenView(View):
             session.save(update_fields=["current_node", "updated_at"])
 
         node = session.current_node
+        _log_session_event(session, SurveySessionEvent.EventType.QUESTION_VIEWED, node=node, request=request)
         answer = SurveyAnswer.objects.filter(session=session, node=node).first()
         form = DynamicQuestionForm(node=node)
         form.fill_initial_from_answer(answer)
@@ -1000,7 +1171,12 @@ class SurveyByTokenView(View):
     @transaction.atomic
     def post(self, request: HttpRequest, token: str) -> HttpResponse:
         session = self.get_object(token)
+        just_opened = _touch_session_activity(session)
+        if just_opened:
+            _log_session_event(session, SurveySessionEvent.EventType.LINK_OPENED, request=request)
         if not session.is_link_active:
+            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+        if session.is_archived:
             return render(request, "survey/link_inactive.html", {"session": session}, status=403)
         wants_edit = request.GET.get("edit") == "1"
         if _is_session_completed(session) and not wants_edit:
@@ -1020,6 +1196,13 @@ class SurveyByTokenView(View):
         answer = _build_or_get_answer(session, node)
         value = form.get_answer_payload()
         _persist_answer(answer, node, value)
+        _log_session_event(
+            session,
+            SurveySessionEvent.EventType.ANSWER_SAVED,
+            node=node,
+            request=request,
+            details={"question_id": node.question_id},
+        )
 
         next_node = _resolve_next_node(node, value)
         if next_node is None:
@@ -1045,6 +1228,7 @@ class SurveyByTokenView(View):
                     update_fields=["status", "first_saved_at", "submitted_at", "current_node", "updated_at"]
                 )
                 _capture_submission_snapshot(session)
+            _log_session_event(session, SurveySessionEvent.EventType.SURVEY_SUBMITTED, node=node, request=request)
             return redirect("survey-thanks", token=token)
 
         session.current_node = next_node
@@ -1054,13 +1238,13 @@ class SurveyByTokenView(View):
 
 def survey_saved(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
-    if not session.is_link_active:
+    if session.is_archived or not session.is_link_active:
         return render(request, "survey/link_inactive.html", {"session": session}, status=403)
     return render(request, "survey/saved.html", {"session": session})
 
 
 def survey_thanks(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
-    if not session.is_link_active:
+    if session.is_archived or not session.is_link_active:
         return render(request, "survey/link_inactive.html", {"session": session}, status=403)
     return render(request, "survey/thanks.html", {"session": session})

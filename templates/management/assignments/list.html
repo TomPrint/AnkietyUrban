@@ -111,6 +111,7 @@
                 {% if sort == 'template' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
+            <th>Created By</th>
             <th>
               <a class="survey-sort-link {% if sort == 'status' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Status
@@ -148,8 +149,27 @@
         <tbody>
           {% for s in sessions %}
           <tr class="{% if not s.is_link_active %}bg-slate-100 text-slate-400{% else %}bg-white{% endif %}">
-            <td>{{ s.customer.company_name }}</td>
-            <td>{{ s.template.name }}</td>
+            <td>
+              {{ s.customer.company_name }}
+              {% if s.customer.is_archived %}
+                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ARCHIVED</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ s.template.name }}
+              {% if s.template.is_archived %}
+                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ARCHIVED</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.created_by %}
+                {{ s.created_by.username }}
+              {% elif s.created_by_name %}
+                {{ s.created_by_name }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
             <td>
               {% if s.status == 'open' %}
                 <span class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Open</span>
@@ -196,7 +216,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="9" class="py-4 text-slate-500">No assignments yet.</td></tr>
+          <tr><td colspan="10" class="py-4 text-slate-500">No assignments yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -204,14 +224,18 @@
   </section>
 </main>
 
-<div id="delete-survey-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+<div
+  id="delete-survey-modal"
+  class="hidden items-center justify-center bg-black/50 px-4"
+  style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
+>
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
     <h2 class="text-xl font-semibold text-red-700">Delete Survey Session</h2>
     <p class="mt-3 text-sm text-slate-700">
       You are deleting survey for: <span id="delete-survey-customer" class="font-semibold"></span>
     </p>
     <p class="mt-2 text-sm text-red-700">
-      Warning: this will erase all survey data (answers and history) permanently.
+      Warning: this will archive the survey and deactivate its link.
     </p>
     <p class="mt-2 text-sm text-slate-600">
       Confirm button unlocks in <span id="delete-survey-counter">5</span> seconds.
@@ -220,7 +244,7 @@
       {% csrf_token %}
       <button type="button" id="delete-survey-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
       <button type="submit" id="delete-survey-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
-        Delete permanently
+        Delete
       </button>
     </form>
   </div>
@@ -234,13 +258,14 @@
     const counter = document.getElementById("delete-survey-counter");
     const confirm = document.getElementById("delete-survey-confirm");
     const cancel = document.getElementById("delete-survey-cancel");
-    const triggers = document.querySelectorAll('[data-delete-survey="true"]');
     let timer = null;
     let left = 5;
+    if (!modal || !form || !customer || !counter || !confirm || !cancel) return;
 
     function closeModal() {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      modal.style.display = "none";
       if (timer) {
         clearInterval(timer);
         timer = null;
@@ -255,6 +280,7 @@
       confirm.disabled = true;
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      modal.style.display = "flex";
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
         left -= 1;
@@ -267,8 +293,11 @@
       }, 1000);
     }
 
-    triggers.forEach((btn) => {
-      btn.addEventListener("click", () => openModal(btn.dataset.deleteUrl, btn.dataset.customer));
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-delete-survey="true"]');
+      if (!btn) return;
+      e.preventDefault();
+      openModal(btn.dataset.deleteUrl, btn.dataset.customer);
     });
     cancel.addEventListener("click", closeModal);
     modal.addEventListener("click", (e) => {

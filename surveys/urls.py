@@ -22,6 +22,7 @@ from .views import (
     user_edit,
     user_list,
     template_builder,
+    template_preview,
     template_builder_data,
     template_copy,
     template_create,
@@ -59,6 +60,7 @@ urlpatterns = [
     path("management/templates/<int:template_id>/edit/", template_edit, name="management-template-edit"),
     path("management/templates/<int:template_id>/delete/", template_delete, name="management-template-delete"),
     path("management/templates/<int:template_id>/builder/", template_builder, name="management-template-builder"),
+    path("management/templates/<int:template_id>/preview/", template_preview, name="management-template-preview"),
     path("management/templates/<int:template_id>/builder/data/", template_builder_data, name="management-template-builder-data"),
     path("management/templates/<int:template_id>/builder/nodes/create/", template_node_create, name="management-template-node-create"),
     path(

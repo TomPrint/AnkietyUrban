@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    ArchivedSurveySession,
     Customer,
     Question,
     QuestionChoice,
@@ -45,9 +46,34 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(SurveySession)
 class SurveySessionAdmin(admin.ModelAdmin):
-    list_display = ("customer", "template", "status", "saved_again_count", "token", "updated_at")
-    list_filter = ("status", "template")
+    list_display = ("customer", "template", "status", "saved_again_count", "is_link_active", "updated_at")
+    list_filter = ("status", "template", "is_archived", "is_link_active")
     search_fields = ("customer__company_name", "token")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(is_archived=False)
+
+
+@admin.register(ArchivedSurveySession)
+class ArchivedSurveySessionAdmin(admin.ModelAdmin):
+    list_display = ("customer", "template", "status", "saved_again_count", "is_link_active", "archived_at", "updated_at")
+    list_filter = ("status", "template", "is_link_active", "archived_at")
+    search_fields = ("customer__company_name", "token")
+    actions = ("restore_selected_surveys",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(is_archived=True)
+
+    @admin.action(description="Restore selected archived surveys (restored as deactivated)")
+    def restore_selected_surveys(self, request, queryset):
+        count = 0
+        for session in queryset:
+            session.restore_from_archive()
+            count += 1
+        self.message_user(
+            request,
+            f"Restored {count} survey session(s). Links are deactivated and must be activated from Management > Survey.",
+        )
 
 
 @admin.register(SurveyAnswer)

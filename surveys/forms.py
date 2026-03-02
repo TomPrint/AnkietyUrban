@@ -260,7 +260,11 @@ class SurveyAssignmentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["template"].queryset = SurveyTemplate.objects.filter(status=SurveyTemplate.Status.READY)
+        self.fields["customer"].queryset = Customer.objects.filter(is_archived=False).order_by("company_name")
+        self.fields["template"].queryset = SurveyTemplate.objects.filter(
+            status=SurveyTemplate.Status.READY,
+            is_archived=False,
+        ).order_by("name")
         for field in self.fields.values():
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
 

@@ -3,6 +3,26 @@
 {% block title %}Template Builder | Ankiety Urban{% endblock %}
 
 {% block content %}
+<style>
+  .template-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #64748b;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .template-sort-link:hover {
+    color: #0f172a;
+  }
+  .template-sort-link.active {
+    color: #0f172a;
+  }
+  .template-sort-arrow {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+</style>
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
@@ -17,14 +37,50 @@
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <form method="get" class="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+      <input
+        type="search"
+        name="q"
+        value="{{ q }}"
+        placeholder="Search templates by name, description, or status"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2"
+      >
+      <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit" aria-label="Search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+        </svg>
+      </button>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-center" href="{% url 'management-templates' %}">Reset</a>
+    </form>
     <div class="overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
-            <th class="py-2">Name</th>
-            <th class="py-2">Status</th>
-            <th class="py-2">Nodes</th>
-            <th class="py-2">Last Updated</th>
+            <th class="py-2">
+              <a class="template-sort-link {% if sort == 'name' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Name
+                {% if sort == 'name' %}<span class="template-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th class="py-2">
+              <a class="template-sort-link {% if sort == 'status' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Status
+                {% if sort == 'status' %}<span class="template-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th class="py-2">
+              <a class="template-sort-link {% if sort == 'nodes' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=nodes&dir={% if sort == 'nodes' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Nodes
+                {% if sort == 'nodes' %}<span class="template-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th class="py-2">
+              <a class="template-sort-link {% if sort == 'updated' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=updated&dir={% if sort == 'updated' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Last Updated
+                {% if sort == 'updated' %}<span class="template-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
@@ -42,11 +98,14 @@
                 <span class="ml-2 rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">LIVE - no edit</span>
               {% endif %}
             </td>
-            <td class="py-2">{{ t.nodes.count }}</td>
+            <td class="py-2">{{ t.nodes_count }}</td>
             <td class="py-2">{{ t.updated_at }}</td>
             <td class="py-2">
               {% if t.live_sessions_count %}
-                <span class="text-xs font-semibold text-slate-500">Survey is live, no edit possible.</span>
+                <div class="flex items-center gap-2">
+                  <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-preview' t.id %}">Preview</a>
+                  <span class="text-xs font-semibold text-slate-500">Survey is live, no edit possible.</span>
+                </div>
               {% else %}
                 <div class="flex gap-2">
                   <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-edit' t.id %}">Change Name</a>
@@ -74,7 +133,11 @@
   </section>
 </main>
 
-<div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+<div
+  id="delete-modal"
+  class="hidden items-center justify-center bg-black/50 px-4"
+  style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
+>
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
     <h2 class="text-xl font-semibold">Delete Survey Template</h2>
     <p class="mt-3 text-sm text-slate-700">
@@ -93,7 +156,7 @@
         Cancel
       </button>
       <button type="submit" id="delete-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
-        Delete permanently
+        Delete
       </button>
     </form>
   </div>
@@ -107,13 +170,14 @@
     const confirmBtn = document.getElementById("delete-confirm");
     const cancelBtn = document.getElementById("delete-cancel");
     const counterEl = document.getElementById("delete-counter");
-    const triggers = document.querySelectorAll('[data-delete-trigger="true"]');
     let timer = null;
     let left = 5;
+    if (!modal || !nameEl || !form || !confirmBtn || !cancelBtn || !counterEl) return;
 
     function closeModal() {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      modal.style.display = "none";
       if (timer) {
         clearInterval(timer);
         timer = null;
@@ -128,6 +192,7 @@
       confirmBtn.disabled = true;
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      modal.style.display = "flex";
 
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
@@ -141,10 +206,11 @@
       }, 1000);
     }
 
-    triggers.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        openModal(btn.dataset.deleteUrl, btn.dataset.templateName);
-      });
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-delete-trigger="true"]');
+      if (!btn) return;
+      e.preventDefault();
+      openModal(btn.dataset.deleteUrl, btn.dataset.templateName);
     });
 
     cancelBtn.addEventListener("click", closeModal);

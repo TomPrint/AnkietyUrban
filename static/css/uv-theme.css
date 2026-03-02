@@ -150,6 +150,19 @@ a[role="button"][class*="red"]:hover {
   color: #ffffff !important;
 }
 
+/* Force all delete/danger buttons to red fill on hover everywhere in app. */
+button[class*="border-red-"]:hover,
+button[class*="text-red-"]:hover,
+input[type="button"][class*="border-red-"]:hover,
+input[type="submit"][class*="border-red-"]:hover,
+input[type="reset"][class*="border-red-"]:hover,
+a[class*="border-red-"]:hover,
+a[class*="text-red-"]:hover {
+  background-color: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+}
+
 button:not(.uv-nav-link)[class*="red"],
 input[type="button"][class*="red"],
 input[type="submit"][class*="red"],
@@ -219,9 +232,20 @@ input[type="button"].uv-btn-new:hover,
 input[type="submit"].uv-btn-new:hover,
 input[type="reset"].uv-btn-new:hover,
 a.uv-btn-new:hover {
-  background-color: var(--uv-navy) !important;
-  color: #15803d !important;
-  border-color: var(--uv-navy) !important;
+  background-color: #15803d !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+}
+
+/* High-specificity "new" override (must beat main button hover blue rule). */
+main button:not(.uv-nav-link):not(.connect-btn).uv-btn-new:hover,
+main input[type="button"].uv-btn-new:hover,
+main input[type="submit"].uv-btn-new:hover,
+main input[type="reset"].uv-btn-new:hover,
+main a[class*="rounded"].uv-btn-new:hover {
+  background-color: #15803d !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
 }
 
 button:not(.uv-nav-link).uv-btn-warn,
@@ -238,9 +262,33 @@ input[type="button"].uv-btn-warn:hover,
 input[type="submit"].uv-btn-warn:hover,
 input[type="reset"].uv-btn-warn:hover,
 a.uv-btn-warn:hover {
-  background-color: var(--uv-navy) !important;
-  color: #facc15 !important;
-  border-color: var(--uv-navy) !important;
+  background-color: #facc15 !important;
+  color: #1a2331 !important;
+  border-color: #facc15 !important;
+}
+
+/* High-specificity warning override (must beat main button hover blue rule). */
+main button:not(.uv-nav-link):not(.connect-btn).uv-btn-warn:hover,
+main input[type="button"].uv-btn-warn:hover,
+main input[type="submit"].uv-btn-warn:hover,
+main input[type="reset"].uv-btn-warn:hover,
+main a[class*="rounded"].uv-btn-warn:hover {
+  background-color: #facc15 !important;
+  color: #1a2331 !important;
+  border-color: #facc15 !important;
+}
+
+/* High-specificity danger override (must beat main button hover blue rule). */
+main button:not(.uv-nav-link):not(.connect-btn)[class*="border-red-"]:hover,
+main button:not(.uv-nav-link):not(.connect-btn)[class*="text-red-"]:hover,
+main input[type="button"][class*="border-red-"]:hover,
+main input[type="submit"][class*="border-red-"]:hover,
+main input[type="reset"][class*="border-red-"]:hover,
+main a[class*="rounded"][class*="border-red-"]:hover,
+main a[class*="rounded"][class*="text-red-"]:hover {
+  background-color: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
 }
 
 .uv-survey-bg {

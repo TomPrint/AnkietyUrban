@@ -25,6 +25,7 @@
             <th class="py-2">Email</th>
             <th class="py-2">Staff</th>
             <th class="py-2">Active</th>
+            <th class="py-2">Generated Links</th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
@@ -36,22 +37,113 @@
             <td class="py-2">{{ u.email|default:"-" }}</td>
             <td class="py-2">{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
             <td class="py-2">{% if u.is_active %}Yes{% else %}No{% endif %}</td>
+            <td class="py-2">{{ u.generated_links_count }}</td>
             <td class="py-2">
               <div class="flex gap-2">
                 <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-user-edit' u.id %}">Edit</a>
-                <form method="post" action="{% url 'management-user-delete' u.id %}">
-                  {% csrf_token %}
-                  <button class="rounded border border-red-300 px-2 py-1 text-red-700" type="submit">Delete</button>
-                </form>
+                <button
+                  type="button"
+                  class="rounded border border-red-300 px-2 py-1 text-red-700"
+                  data-delete-user="true"
+                  data-delete-url="{% url 'management-user-delete' u.id %}"
+                  data-user-name="{{ u.username }}"
+                >
+                  Delete
+                </button>
               </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="py-4 text-slate-500">No users yet.</td></tr>
+          <tr><td colspan="7" class="py-4 text-slate-500">No users yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </section>
 </main>
+
+<div
+  id="delete-user-modal"
+  class="hidden items-center justify-center bg-black/50 px-4"
+  style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
+>
+  <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+    <h2 class="text-xl font-semibold text-red-700">Delete User</h2>
+    <p class="mt-3 text-sm text-slate-700">
+      You are deleting user: <span id="delete-user-name" class="font-semibold"></span>
+    </p>
+    <p class="mt-2 text-sm text-red-700">
+      Warning: this user will lose access to the management portal.
+    </p>
+    <p class="mt-2 text-sm text-slate-600">
+      Confirm button unlocks in <span id="delete-user-counter">5</span> seconds.
+    </p>
+    <form id="delete-user-form" method="post" class="mt-6 flex gap-3">
+      {% csrf_token %}
+      <button type="button" id="delete-user-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+      <button type="submit" id="delete-user-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
+        Delete
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const modal = document.getElementById("delete-user-modal");
+    const form = document.getElementById("delete-user-form");
+    const nameEl = document.getElementById("delete-user-name");
+    const counter = document.getElementById("delete-user-counter");
+    const confirm = document.getElementById("delete-user-confirm");
+    const cancel = document.getElementById("delete-user-cancel");
+    let timer = null;
+    let left = 5;
+    if (!modal || !form || !nameEl || !counter || !confirm || !cancel) return;
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      modal.style.display = "none";
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function openModal(url, userName) {
+      form.action = url;
+      nameEl.textContent = userName;
+      left = 5;
+      counter.textContent = String(left);
+      confirm.disabled = true;
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      modal.style.display = "flex";
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        left -= 1;
+        counter.textContent = String(Math.max(left, 0));
+        if (left <= 0) {
+          confirm.disabled = false;
+          clearInterval(timer);
+          timer = null;
+        }
+      }, 1000);
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-delete-user="true"]');
+      if (!btn) return;
+      e.preventDefault();
+      openModal(btn.dataset.deleteUrl, btn.dataset.userName);
+    });
+    cancel.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+  })();
+</script>
 {% endblock %}

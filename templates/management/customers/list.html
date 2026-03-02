@@ -39,10 +39,15 @@
             <td class="py-2">
               <div class="flex gap-2">
                 <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-customer-edit' c.id %}">Edit</a>
-                <form method="post" action="{% url 'management-customer-delete' c.id %}">
-                  {% csrf_token %}
-                  <button class="rounded border border-red-300 px-2 py-1 text-red-700" type="submit">Delete</button>
-                </form>
+                <button
+                  type="button"
+                  class="rounded border border-red-300 px-2 py-1 text-red-700"
+                  data-delete-customer="true"
+                  data-delete-url="{% url 'management-customer-delete' c.id %}"
+                  data-customer-name="{{ c.company_name }}"
+                >
+                  Delete
+                </button>
               </div>
             </td>
           </tr>
@@ -54,4 +59,89 @@
     </div>
   </section>
 </main>
+
+<div
+  id="delete-customer-modal"
+  class="hidden items-center justify-center bg-black/50 px-4"
+  style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
+>
+  <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+    <h2 class="text-xl font-semibold text-red-700">Delete Customer</h2>
+    <p class="mt-3 text-sm text-slate-700">
+      You are deleting customer: <span id="delete-customer-name" class="font-semibold"></span>
+    </p>
+    <p class="mt-2 text-sm text-red-700">
+      Warning: this can affect active surveys connected to this customer.
+    </p>
+    <p class="mt-2 text-sm text-slate-600">
+      Confirm button unlocks in <span id="delete-customer-counter">5</span> seconds.
+    </p>
+    <form id="delete-customer-form" method="post" class="mt-6 flex gap-3">
+      {% csrf_token %}
+      <button type="button" id="delete-customer-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+      <button type="submit" id="delete-customer-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
+        Delete
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const modal = document.getElementById("delete-customer-modal");
+    const form = document.getElementById("delete-customer-form");
+    const nameEl = document.getElementById("delete-customer-name");
+    const counter = document.getElementById("delete-customer-counter");
+    const confirm = document.getElementById("delete-customer-confirm");
+    const cancel = document.getElementById("delete-customer-cancel");
+    let timer = null;
+    let left = 5;
+    if (!modal || !form || !nameEl || !counter || !confirm || !cancel) return;
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      modal.style.display = "none";
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function openModal(url, customerName) {
+      form.action = url;
+      nameEl.textContent = customerName;
+      left = 5;
+      counter.textContent = String(left);
+      confirm.disabled = true;
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      modal.style.display = "flex";
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        left -= 1;
+        counter.textContent = String(Math.max(left, 0));
+        if (left <= 0) {
+          confirm.disabled = false;
+          clearInterval(timer);
+          timer = null;
+        }
+      }, 1000);
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-delete-customer="true"]');
+      if (!btn) return;
+      e.preventDefault();
+      openModal(btn.dataset.deleteUrl, btn.dataset.customerName);
+    });
+    cancel.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+  })();
+</script>
 {% endblock %}

@@ -115,7 +115,11 @@
   </section>
 </main>
 
-<div id="delete-question-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+<div
+  id="delete-question-modal"
+  class="hidden items-center justify-center bg-black/50 px-4"
+  style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
+>
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
     <h2 class="text-xl font-semibold text-red-700">Delete Question</h2>
     <p class="mt-3 text-sm text-slate-700">
@@ -131,7 +135,7 @@
       {% csrf_token %}
       <button type="button" id="delete-question-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
       <button type="submit" id="delete-question-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
-        Delete permanently
+        Delete
       </button>
     </form>
   </div>
@@ -145,13 +149,14 @@
     const counter = document.getElementById("delete-question-counter");
     const confirm = document.getElementById("delete-question-confirm");
     const cancel = document.getElementById("delete-question-cancel");
-    const triggers = document.querySelectorAll('[data-delete-question="true"]');
     let timer = null;
     let left = 5;
+    if (!modal || !form || !questionName || !counter || !confirm || !cancel) return;
 
     function closeModal() {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      modal.style.display = "none";
       if (timer) {
         clearInterval(timer);
         timer = null;
@@ -166,6 +171,7 @@
       confirm.disabled = true;
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      modal.style.display = "flex";
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
         left -= 1;
@@ -178,8 +184,11 @@
       }, 1000);
     }
 
-    triggers.forEach((btn) => {
-      btn.addEventListener("click", () => openModal(btn.dataset.deleteUrl, btn.dataset.questionTitle));
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-delete-question="true"]');
+      if (!btn) return;
+      e.preventDefault();
+      openModal(btn.dataset.deleteUrl, btn.dataset.questionTitle);
     });
     cancel.addEventListener("click", closeModal);
     modal.addEventListener("click", (e) => {
