@@ -1,4 +1,5 @@
 import uuid
+import csv
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -8,6 +9,7 @@ from django.db.models import Count, Max, Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.text import slugify
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
@@ -460,21 +462,54 @@ def _capture_submission_snapshot(session: SurveySession):
     )
 
 
+def _node_can_end_survey(node: TemplateNode) -> bool:
+    if node.question.question_type == Question.QuestionType.YES_NO:
+        return bool(node.end_on_yes or node.end_on_no)
+    return bool(node.ends_survey)
+
+
+def _consent_state_from_session(session: SurveySession):
+    return {
+        "consent_personal_data": bool(session.consent_personal_data),
+        "consent_data_administration": bool(session.consent_data_administration),
+        "consent_contact_results": bool(session.consent_contact_results),
+        "consent_marketing": bool(session.consent_marketing),
+    }
+
+
+def _consent_state_from_post(request: HttpRequest):
+    return {
+        "consent_personal_data": request.POST.get("consent_personal_data") == "on",
+        "consent_data_administration": request.POST.get("consent_data_administration") == "on",
+        "consent_contact_results": request.POST.get("consent_contact_results") == "on",
+        "consent_marketing": request.POST.get("consent_marketing") == "on",
+    }
+
+
 @staff_required
 def management_dashboard(request: HttpRequest) -> HttpResponse:
-    context = {
-        "customers_count": Customer.objects.filter(is_archived=False).count(),
-        "questions_count": Question.objects.filter(is_system=False, is_archived=False).count(),
-        "templates_count": SurveyTemplate.objects.filter(is_archived=False).count(),
-        "sessions_open": SurveySession.objects.filter(status=SurveySession.Status.OPEN, is_archived=False).count(),
-        "generated_links_count": SurveySession.objects.filter(is_archived=False).count(),
-        "sessions_closed": SurveySession.objects.filter(
+    generated_links_count = SurveySession.objects.filter(is_archived=False).count()
+    sessions_open = SurveySession.objects.filter(status=SurveySession.Status.OPEN, is_archived=False).count()
+    sessions_closed = (
+        SurveySession.objects.filter(
             status__in=[SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN],
             is_archived=False,
         )
         .values("id")
         .distinct()
-        .count(),
+        .count()
+    )
+    open_percent = round((sessions_open / generated_links_count) * 100, 1) if generated_links_count else 0
+    closed_percent = round((sessions_closed / generated_links_count) * 100, 1) if generated_links_count else 0
+    context = {
+        "customers_count": Customer.objects.filter(is_archived=False).count(),
+        "questions_count": Question.objects.filter(is_system=False, is_archived=False).count(),
+        "templates_count": SurveyTemplate.objects.filter(is_archived=False).count(),
+        "sessions_open": sessions_open,
+        "generated_links_count": generated_links_count,
+        "sessions_closed": sessions_closed,
+        "sessions_open_percent": open_percent,
+        "sessions_closed_percent": closed_percent,
         "latest_sessions": SurveySession.objects.select_related("customer", "template").filter(is_archived=False)[:10],
     }
     return render(request, "management/dashboard.html", context)
@@ -658,6 +693,42 @@ def survey_session_detail(request: HttpRequest, session_id: int) -> HttpResponse
         "activity_events": activity_events,
     }
     return render(request, "management/assignments/detail.html", context)
+
+
+@staff_required
+@require_GET
+def survey_snapshot_csv(request: HttpRequest, session_id: int, snapshot_id: int) -> HttpResponse:
+    snapshot = get_object_or_404(
+        SurveySubmissionSnapshot.objects.select_related("session", "session__customer", "session__template"),
+        pk=snapshot_id,
+        session_id=session_id,
+        session__is_archived=False,
+    )
+    session = snapshot.session
+    company_part = slugify(session.customer.company_name) or "customer"
+    template_part = slugify(session.template.name) or "template"
+    filename = f"{company_part}_{template_part}_session_{session.id}_version_{snapshot.version_number}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(["Session ID", session.id])
+    writer.writerow(["Customer", session.customer.company_name])
+    writer.writerow(["Template", session.template.name])
+    writer.writerow(["Version", snapshot.version_number])
+    writer.writerow(["Saved At", snapshot.saved_at])
+    writer.writerow(["Status", snapshot.status or ""])
+    writer.writerow([])
+    writer.writerow(["Node", "Question", "Answer"])
+    for item in snapshot.answers or []:
+        writer.writerow(
+            [
+                item.get("node_id", ""),
+                item.get("question_title", ""),
+                item.get("value", ""),
+            ]
+        )
+    return response
 
 
 @staff_required
@@ -1129,6 +1200,36 @@ def template_save_ready(request: HttpRequest, template_id: int) -> JsonResponse:
 class SurveyByTokenView(View):
     template_name = "survey/fill_survey.html"
 
+    def _render_form(
+        self,
+        request: HttpRequest,
+        *,
+        session: SurveySession,
+        node: TemplateNode,
+        form: DynamicQuestionForm,
+        consent_error: str = "",
+        consent_state: dict | None = None,
+    ) -> HttpResponse:
+        admin_name = session.customer.company_name or "[NAZWA FIRMY]"
+        admin_city = session.customer.address or "[miasto]"
+        if consent_state is None:
+            consent_state = _consent_state_from_session(session)
+        return render(
+            request,
+            self.template_name,
+            {
+                "session": session,
+                "node": node,
+                "question": node.question,
+                "form": form,
+                "consent_required_on_this_node": _node_can_end_survey(node),
+                "consent_error": consent_error,
+                "consent_state": consent_state,
+                "gdpr_admin_name": admin_name,
+                "gdpr_admin_city": admin_city,
+            },
+        )
+
     def get_object(self, token):
         return get_object_or_404(
             SurveySession.objects.select_related("customer", "template", "current_node", "current_node__question")
@@ -1163,10 +1264,7 @@ class SurveyByTokenView(View):
         answer = SurveyAnswer.objects.filter(session=session, node=node).first()
         form = DynamicQuestionForm(node=node)
         form.fill_initial_from_answer(answer)
-
-        return render(
-            request, self.template_name, {"session": session, "node": node, "question": node.question, "form": form}
-        )
+        return self._render_form(request, session=session, node=node, form=form)
 
     @transaction.atomic
     def post(self, request: HttpRequest, token: str) -> HttpResponse:
@@ -1189,12 +1287,27 @@ class SurveyByTokenView(View):
         node = session.current_node
         form = DynamicQuestionForm(node=node, data=request.POST)
         if not form.is_valid():
-            return render(
-                request, self.template_name, {"session": session, "node": node, "question": node.question, "form": form}
-            )
+            return self._render_form(request, session=session, node=node, form=form)
+
+        value = form.get_answer_payload()
+        next_node = _resolve_next_node(node, value)
+        if next_node is None:
+            consent_state = _consent_state_from_post(request)
+            if not (
+                consent_state["consent_personal_data"]
+                and consent_state["consent_data_administration"]
+                and consent_state["consent_contact_results"]
+            ):
+                return self._render_form(
+                    request,
+                    session=session,
+                    node=node,
+                    form=form,
+                    consent_error="Przed zapisaniem ankiety należy zaakceptować wymagane zgody.",
+                    consent_state=consent_state,
+                )
 
         answer = _build_or_get_answer(session, node)
-        value = form.get_answer_payload()
         _persist_answer(answer, node, value)
         _log_session_event(
             session,
@@ -1204,8 +1317,13 @@ class SurveyByTokenView(View):
             details={"question_id": node.question_id},
         )
 
-        next_node = _resolve_next_node(node, value)
         if next_node is None:
+            consent_state = _consent_state_from_post(request)
+            session.consent_personal_data = consent_state["consent_personal_data"]
+            session.consent_data_administration = consent_state["consent_data_administration"]
+            session.consent_contact_results = consent_state["consent_contact_results"]
+            session.consent_marketing = consent_state["consent_marketing"]
+            session.consent_submitted_at = timezone.now()
             if session.first_saved_at is not None:
                 session.mark_saved_again()
                 session.current_node = None
@@ -1216,6 +1334,11 @@ class SurveyByTokenView(View):
                         "last_saved_again_at",
                         "submitted_at",
                         "current_node",
+                        "consent_personal_data",
+                        "consent_data_administration",
+                        "consent_contact_results",
+                        "consent_marketing",
+                        "consent_submitted_at",
                         "updated_at",
                     ]
                 )
@@ -1225,7 +1348,18 @@ class SurveyByTokenView(View):
                 if session.first_saved_at is None:
                     session.first_saved_at = session.submitted_at
                 session.save(
-                    update_fields=["status", "first_saved_at", "submitted_at", "current_node", "updated_at"]
+                    update_fields=[
+                        "status",
+                        "first_saved_at",
+                        "submitted_at",
+                        "current_node",
+                        "consent_personal_data",
+                        "consent_data_administration",
+                        "consent_contact_results",
+                        "consent_marketing",
+                        "consent_submitted_at",
+                        "updated_at",
+                    ]
                 )
                 _capture_submission_snapshot(session)
             _log_session_event(session, SurveySessionEvent.EventType.SURVEY_SUBMITTED, node=node, request=request)

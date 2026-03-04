@@ -185,6 +185,11 @@ class SurveySession(models.Model):
     first_saved_at = models.DateTimeField(null=True, blank=True)
     last_reopened_at = models.DateTimeField(null=True, blank=True)
     last_saved_again_at = models.DateTimeField(null=True, blank=True)
+    consent_personal_data = models.BooleanField(default=False)
+    consent_data_administration = models.BooleanField(default=False)
+    consent_contact_results = models.BooleanField(default=False)
+    consent_marketing = models.BooleanField(default=False)
+    consent_submitted_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 

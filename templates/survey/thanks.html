@@ -13,10 +13,32 @@
       <button type="button" class="rounded-lg bg-slate-900 px-5 py-2.5 text-base font-semibold text-white" onclick="window.location.href='https://urban-vision.pl';">
         Back
       </button>
-      <a class="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-semibold" href="{% url 'survey-by-token' session.token %}?edit=1">
-        Edit and Submit Survey Again
+      <label for="confirm-edit" class="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
+        <input id="confirm-edit" type="checkbox" class="h-4 w-4" />
+        <span>I want to edit/correct my information</span>
+      </label>
+      <a
+        id="edit-link"
+        class="pointer-events-none rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-semibold opacity-50"
+        href="{% url 'survey-by-token' session.token %}?edit=1"
+        aria-disabled="true"
+      >
+        Edit
       </a>
     </div>
   </section>
 </main>
+<script>
+  (function () {
+    const confirm = document.getElementById("confirm-edit");
+    const editLink = document.getElementById("edit-link");
+    if (!confirm || !editLink) return;
+    confirm.addEventListener("change", () => {
+      const enabled = confirm.checked;
+      editLink.classList.toggle("pointer-events-none", !enabled);
+      editLink.classList.toggle("opacity-50", !enabled);
+      editLink.setAttribute("aria-disabled", enabled ? "false" : "true");
+    });
+  })();
+</script>
 {% endblock %}

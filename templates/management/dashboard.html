@@ -15,7 +15,7 @@
     </div>
   </header>
 
-  <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <article class="rounded-xl bg-white p-5 shadow">
       <p class="text-sm text-slate-500">Customers</p>
       <p class="mt-2 text-3xl font-bold">{{ customers_count }}</p>
@@ -28,20 +28,26 @@
       <p class="text-sm text-slate-500">Templates</p>
       <p class="mt-2 text-3xl font-bold">{{ templates_count }}</p>
     </article>
-    <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Open</p>
-      <p class="mt-2 text-3xl font-bold text-emerald-700">{{ sessions_open }}</p>
-    </article>
   </section>
 
-  <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+  <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <article class="rounded-xl bg-white p-5 shadow">
       <p class="text-sm text-slate-500">Generated Links</p>
       <p class="mt-2 text-3xl font-bold text-amber-600">{{ generated_links_count }}</p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
+      <p class="text-sm text-slate-500">Open</p>
+      <p class="mt-2 text-3xl font-bold text-emerald-700">
+        {{ sessions_open }}
+        <span class="ml-1 align-middle text-base font-semibold text-emerald-600">({{ sessions_open_percent }}%)</span>
+      </p>
+    </article>
+    <article class="rounded-xl bg-white p-5 shadow">
       <p class="text-sm text-slate-500">Closed</p>
-      <p class="mt-2 text-3xl font-bold text-slate-800">{{ sessions_closed }}</p>
+      <p class="mt-2 text-3xl font-bold text-slate-800">
+        {{ sessions_closed }}
+        <span class="ml-1 align-middle text-base font-semibold text-slate-700">({{ sessions_closed_percent }}%)</span>
+      </p>
     </article>
   </section>
 
@@ -55,7 +61,6 @@
             <th class="py-2">Template</th>
             <th class="py-2">Status</th>
             <th class="py-2">Closed</th>
-            <th class="py-2">Survey Link</th>
           </tr>
         </thead>
         <tbody>
@@ -71,10 +76,9 @@
                 0
               {% endif %}
             </td>
-            <td class="py-2"><a class="text-blue-700 underline" href="{% url 'survey-by-token' session.token %}">Open</a></td>
           </tr>
           {% empty %}
-          <tr><td class="py-4 text-slate-500" colspan="5">No sessions yet.</td></tr>
+          <tr><td class="py-4 text-slate-500" colspan="4">No sessions yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

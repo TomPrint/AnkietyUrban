@@ -50,12 +50,124 @@
         {% endfor %}
       </div>
 
+      {% if consent_error %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        {{ consent_error }}
+      </div>
+      {% endif %}
+
+      <div
+        id="consent-required-block"
+        class="hidden rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm"
+        data-question-type="{{ question.question_type }}"
+        data-ends-survey="{% if node.ends_survey %}1{% else %}0{% endif %}"
+        data-end-on-yes="{% if node.end_on_yes %}1{% else %}0{% endif %}"
+        data-end-on-no="{% if node.end_on_no %}1{% else %}0{% endif %}"
+      >
+        <p class="mb-3 font-semibold text-slate-800">Zgody wymagane do zapisania ankiety</p>
+
+        <label class="mb-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="consent_personal_data"
+            data-consent-required="true"
+            class="mt-1 h-4 w-4"
+            {% if consent_state.consent_personal_data %}checked{% endif %}
+          />
+          <span>
+            Wyrażam zgodę na przetwarzanie moich danych osobowych zawartych w ankiecie
+            w celu jej realizacji zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady
+            (UE) 2016/679 (RODO). Administratorem danych jest {{ gdpr_admin_name }}.
+            Zapoznałem/am się z informacją o przetwarzaniu danych osobowych.
+          </span>
+        </label>
+
+        <label class="mb-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="consent_data_administration"
+            data-consent-required="true"
+            class="mt-1 h-4 w-4"
+            {% if consent_state.consent_data_administration %}checked{% endif %}
+          />
+          <span>
+            Administratorem danych osobowych jest {{ gdpr_admin_name }} z siedzibą w {{ gdpr_admin_city }}.
+            Dane będą przetwarzane w celu realizacji ankiety oraz ewentualnego kontaktu
+            związanego z jej wynikami. Podanie danych jest dobrowolne, ale niezbędne
+            do udziału w ankiecie. Masz prawo dostępu do swoich danych, ich poprawiania,
+            usunięcia, ograniczenia przetwarzania oraz wniesienia skargi do Prezesa UODO.
+            Szczegółowe informacje znajdują się w Polityce prywatności.
+          </span>
+        </label>
+
+        <label class="mb-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="consent_contact_results"
+            data-consent-required="true"
+            class="mt-1 h-4 w-4"
+            {% if consent_state.consent_contact_results %}checked{% endif %}
+          />
+          <span>Wyrażam zgodę na kontakt w sprawie wyników ankiety.</span>
+        </label>
+
+        <label class="flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="consent_marketing"
+            class="mt-1 h-4 w-4"
+            {% if consent_state.consent_marketing %}checked{% endif %}
+          />
+          <span>Wyrażam zgodę na otrzymywanie informacji handlowych drogą elektroniczną. (Opcjonalnie)</span>
+        </label>
+      </div>
+
       <div class="flex flex-col gap-3 sm:flex-row">
-        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700" type="submit" name="action" value="next">
+        <button id="survey-submit-btn" class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50" type="submit" name="action" value="next">
           Continue
         </button>
       </div>
     </form>
   </section>
 </main>
+<script>
+  (function () {
+    const consentBlock = document.getElementById("consent-required-block");
+    const submitBtn = document.getElementById("survey-submit-btn");
+    if (!consentBlock || !submitBtn) return;
+
+    const requiredChecks = Array.from(consentBlock.querySelectorAll('[data-consent-required="true"]'));
+    const questionType = consentBlock.dataset.questionType || "";
+    const endsSurvey = consentBlock.dataset.endsSurvey === "1";
+    const endOnYes = consentBlock.dataset.endOnYes === "1";
+    const endOnNo = consentBlock.dataset.endOnNo === "1";
+
+    function terminalPathSelected() {
+      if (questionType !== "yes_no") return endsSurvey;
+      const selected = document.querySelector('input[name="answer"]:checked');
+      if (!selected) return false;
+      if (selected.value === "yes") return endOnYes;
+      if (selected.value === "no") return endOnNo;
+      return false;
+    }
+
+    function allRequiredChecked() {
+      return requiredChecks.every((el) => el.checked);
+    }
+
+    function updateConsentGate() {
+      const needsConsent = terminalPathSelected();
+      consentBlock.classList.toggle("hidden", !needsConsent);
+      if (!needsConsent) {
+        submitBtn.disabled = false;
+        return;
+      }
+      submitBtn.disabled = !allRequiredChecked();
+    }
+
+    requiredChecks.forEach((el) => el.addEventListener("change", updateConsentGate));
+    document.querySelectorAll('input[name="answer"]').forEach((el) => el.addEventListener("change", updateConsentGate));
+    updateConsentGate();
+  })();
+</script>
 {% endblock %}
