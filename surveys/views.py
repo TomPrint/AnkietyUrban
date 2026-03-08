@@ -563,6 +563,36 @@ def customer_list(request: HttpRequest) -> HttpResponse:
 
 
 @staff_required
+def customer_detail(request: HttpRequest, customer_id: int) -> HttpResponse:
+    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
+    sessions = (
+        SurveySession.objects.select_related("template")
+        .filter(customer=customer, is_archived=False)
+        .order_by("-updated_at")
+    )
+
+    session_rows = []
+    for session in sessions:
+        total_nodes = session.template.nodes.count()
+        answered_nodes = session.answers.values("node_id").distinct().count()
+        is_completed = session.status in (SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN)
+        score_percent = 100 if is_completed else int((answered_nodes / total_nodes) * 100) if total_nodes else 0
+        session_rows.append(
+            {
+                "session": session,
+                "score_percent": score_percent,
+                "saved_versions_count": session.snapshots.count(),
+            }
+        )
+
+    context = {
+        "customer": customer,
+        "session_rows": session_rows,
+    }
+    return render(request, "management/customers/detail.html", context)
+
+
+@staff_required
 def customer_create(request: HttpRequest) -> HttpResponse:
     form = CustomerForm(request.POST or None)
     if request.method == "POST" and form.is_valid():

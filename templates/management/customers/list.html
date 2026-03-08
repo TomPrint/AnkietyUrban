@@ -31,7 +31,9 @@
         <tbody>
           {% for c in customers %}
           <tr class="border-t border-slate-200">
-            <td class="py-2">{{ c.company_name }}</td>
+            <td class="py-2">
+              <a class="font-semibold text-slate-800 hover:text-blue-700" href="{% url 'management-customer-detail' c.id %}">{{ c.company_name }}</a>
+            </td>
             <td class="py-2">{{ c.address|default:"-" }}</td>
             <td class="py-2">{{ c.contact_person|default:"-" }}</td>
             <td class="py-2">{{ c.email|default:"-" }}</td>

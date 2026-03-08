@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     SurveyByTokenView,
     customer_create,
+    customer_detail,
     customer_delete,
     customer_edit,
     customer_list,
@@ -43,6 +44,7 @@ urlpatterns = [
     path("management/users/<int:user_id>/edit/", user_edit, name="management-user-edit"),
     path("management/users/<int:user_id>/delete/", user_delete, name="management-user-delete"),
     path("management/customers/", customer_list, name="management-customers"),
+    path("management/customers/<int:customer_id>/", customer_detail, name="management-customer-detail"),
     path("management/customers/new/", customer_create, name="management-customer-create"),
     path("management/customers/<int:customer_id>/edit/", customer_edit, name="management-customer-edit"),
     path("management/customers/<int:customer_id>/delete/", customer_delete, name="management-customer-delete"),

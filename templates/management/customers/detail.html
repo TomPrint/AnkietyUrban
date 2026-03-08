@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Detail | Ankiety Urban{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+  <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Customer Detail</p>
+      <h1 class="mt-2 text-3xl font-bold">{{ customer.company_name }}</h1>
+      <p class="mt-2 text-sm text-slate-600">
+        Address: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
+        | Contact: <span class="font-semibold">{{ customer.contact_person|default:"-" }}</span>
+      </p>
+    </div>
+    <div class="flex gap-3">
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-customers' %}">Back to Customers</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-customer-edit' customer.id %}">Edit Customer</a>
+    </div>
+  </header>
+
+  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
+    <h2 class="text-xl font-semibold">Surveys and Scores</h2>
+    <p class="mt-2 text-sm text-slate-500">Score is based on reached survey flow progress (100% if finished).</p>
+
+    <div class="mt-6 overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="text-slate-500">
+          <tr>
+            <th class="py-2">Survey ID</th>
+            <th class="py-2">Template</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Score</th>
+            <th class="py-2">Saved Versions</th>
+            <th class="py-2">Updated</th>
+            <th class="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in session_rows %}
+          <tr class="border-t border-slate-200">
+            <td class="py-2">{{ row.session.id }}</td>
+            <td class="py-2">{{ row.session.template.name }}</td>
+            <td class="py-2">{{ row.session.get_status_display }}</td>
+            <td class="py-2 font-semibold">{{ row.score_percent }}%</td>
+            <td class="py-2">{{ row.saved_versions_count }}</td>
+            <td class="py-2">{{ row.session.updated_at }}</td>
+            <td class="py-2">
+              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' row.session.id %}">Details</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="py-4 text-slate-500">No surveys assigned to this customer yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}
