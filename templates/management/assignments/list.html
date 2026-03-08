@@ -61,7 +61,7 @@
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
     <h2 class="text-xl font-semibold">Create Assignment</h2>
-    <form method="post" class="mt-4 grid gap-4 md:grid-cols-3">
+    <form method="post" class="mt-4 grid gap-4 md:grid-cols-4">
       {% csrf_token %}
       <div>
         <label class="mb-1 block text-sm font-medium" for="{{ form.customer.id_for_label }}">Customer</label>
@@ -70,6 +70,10 @@
       <div>
         <label class="mb-1 block text-sm font-medium" for="{{ form.template.id_for_label }}">Ready Template</label>
         {{ form.template }}
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.is_internal.id_for_label }}">Survey Type</label>
+        {{ form.is_internal }}
       </div>
       <div class="flex items-end">
         <button class="uv-btn-new w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Generate Link</button>
@@ -111,11 +115,22 @@
                 {% if sort == 'template' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
-            <th>Created By</th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'created_by' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=created_by&dir={% if sort == 'created_by' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Created By
+                {% if sort == 'created_by' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
             <th>
               <a class="survey-sort-link {% if sort == 'status' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=status&dir={% if sort == 'status' and dir == 'asc' %}desc{% else %}asc{% endif %}">
                 Status
                 {% if sort == 'status' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th>
+              <a class="survey-sort-link {% if sort == 'int_ext' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=int_ext&dir={% if sort == 'int_ext' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Int/Ext
+                {% if sort == 'int_ext' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
@@ -181,6 +196,13 @@
                 <span class="inline-flex items-center whitespace-nowrap rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">{{ s.get_status_display }}</span>
               {% endif %}
             </td>
+            <td>
+              {% if s.is_internal %}
+                <span class="rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">INT</span>
+              {% else %}
+                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">EXT</span>
+              {% endif %}
+            </td>
             <td>{{ s.started_at|default:"-" }}</td>
             <td>{{ s.first_saved_at|default:"-" }}</td>
             <td>{{ s.last_saved_again_at|default:"-" }}</td>
@@ -227,7 +249,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="10" class="py-4 text-slate-500">No assignments yet.</td></tr>
+          <tr><td colspan="11" class="py-4 text-slate-500">No assignments yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

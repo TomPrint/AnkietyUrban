@@ -47,6 +47,14 @@
         <p class="mt-1 text-lg font-semibold">{{ completion_percent }}%</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p class="text-sm text-slate-500">Reopen Count</p>
+        <p class="mt-1 text-lg font-semibold">{{ session.reopened_count }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p class="text-sm text-slate-500">Last Reopen Time</p>
+        <p class="mt-1 text-lg font-semibold">{{ session.last_reopened_at|default:"-" }}</p>
+      </article>
+      <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p class="text-sm text-slate-500">Drop-off Time (if not saved)</p>
         <p class="mt-1 text-lg font-semibold">{{ drop_off_time|default:"-" }}</p>
       </article>

@@ -462,6 +462,60 @@ def _capture_submission_snapshot(session: SurveySession):
     )
 
 
+def _session_branch_completion_percent(session: SurveySession) -> int:
+    template = session.template
+    start = _start_node(template)
+    if not start:
+        return 0
+
+    nodes = {
+        n.id: n
+        for n in template.nodes.select_related("question").all()
+    }
+    answers_by_node = {
+        a.node_id: a
+        for a in session.answers.only("node_id", "yes_no_answer")
+    }
+
+    path_node_ids = []
+    answered_on_path = 0
+    seen = set()
+    current_id = start.id
+    stop_at_current_node_id = session.current_node_id if not _is_session_completed(session) else None
+
+    while current_id and current_id in nodes and current_id not in seen:
+        seen.add(current_id)
+        path_node_ids.append(current_id)
+        node = nodes[current_id]
+        if stop_at_current_node_id and current_id == stop_at_current_node_id:
+            break
+        answer = answers_by_node.get(current_id)
+        if not answer:
+            break
+        answered_on_path += 1
+
+        if node.question.question_type == Question.QuestionType.YES_NO:
+            if answer.yes_no_answer is None:
+                break
+            if answer.yes_no_answer is True:
+                if node.end_on_yes:
+                    break
+                current_id = node.yes_node_id
+            else:
+                if node.end_on_no:
+                    break
+                current_id = node.no_node_id
+            continue
+
+        if node.ends_survey:
+            break
+        current_id = node.next_node_id
+
+    if not path_node_ids:
+        return 0
+    return int((answered_on_path / len(path_node_ids)) * 100)
+
+
 def _node_can_end_survey(node: TemplateNode) -> bool:
     if node.question.question_type == Question.QuestionType.YES_NO:
         return bool(node.end_on_yes or node.end_on_no)
@@ -573,14 +627,10 @@ def customer_detail(request: HttpRequest, customer_id: int) -> HttpResponse:
 
     session_rows = []
     for session in sessions:
-        total_nodes = session.template.nodes.count()
-        answered_nodes = session.answers.values("node_id").distinct().count()
-        is_completed = session.status in (SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN)
-        score_percent = 100 if is_completed else int((answered_nodes / total_nodes) * 100) if total_nodes else 0
         session_rows.append(
             {
                 "session": session,
-                "score_percent": score_percent,
+                "score_percent": _session_branch_completion_percent(session),
                 "saved_versions_count": session.snapshots.count(),
             }
         )
@@ -637,7 +687,9 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
     sort_map = {
         "customer": "customer__company_name",
         "template": "template__name",
+        "created_by": "created_by_name",
         "status": "status",
+        "int_ext": "is_internal",
         "first_open": "started_at",
         "first_save": "first_saved_at",
         "saved_again": "last_saved_again_at",
@@ -705,10 +757,8 @@ def survey_session_detail(request: HttpRequest, session_id: int) -> HttpResponse
         is_archived=False,
     )
     snapshots = session.snapshots.all()
-    total_nodes = session.template.nodes.count()
-    answered_nodes = session.answers.values("node_id").distinct().count()
     is_completed = session.status in (SurveySession.Status.CLOSED, SurveySession.Status.SAVED_AGAIN)
-    completion_percent = 100 if is_completed else int((answered_nodes / total_nodes) * 100) if total_nodes else 0
+    completion_percent = _session_branch_completion_percent(session)
     drop_off_question = session.current_node.display_title if session.current_node_id else "-"
     drop_off_time = session.last_activity_at if not is_completed and session.current_node_id else None
     activity_events = session.events.select_related("node")[:200]
@@ -1279,8 +1329,19 @@ class SurveyByTokenView(View):
         wants_edit = request.GET.get("edit") == "1"
         if _is_session_completed(session) and not wants_edit:
             return redirect("survey-thanks", token=token)
-        if wants_edit:
-            _ensure_active_session(session)
+        if wants_edit and _is_session_completed(session):
+            session.mark_reopened()
+            session.current_node = _start_node(session.template)
+            session.save(
+                update_fields=[
+                    "status",
+                    "reopened_count",
+                    "last_reopened_at",
+                    "submitted_at",
+                    "current_node",
+                    "updated_at",
+                ]
+            )
             _log_session_event(session, SurveySessionEvent.EventType.SURVEY_REOPENED, request=request)
         # Existing token links should remain usable even if template later moves back to draft.
         start = _start_node_or_404(session.template, require_ready=False)

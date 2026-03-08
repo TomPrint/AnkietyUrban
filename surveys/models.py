@@ -167,6 +167,7 @@ class SurveySession(models.Model):
     )
     created_by_name = models.CharField(max_length=150, blank=True, default="")
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    is_internal = models.BooleanField(default=False)
     is_link_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)

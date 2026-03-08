@@ -254,9 +254,18 @@ class CustomerForm(forms.ModelForm):
 
 
 class SurveyAssignmentForm(forms.ModelForm):
+    is_internal = forms.TypedChoiceField(
+        choices=(("true", "Internal"), ("false", "External")),
+        coerce=lambda value: str(value).lower() == "true",
+        empty_value=True,
+        initial="true",
+        required=True,
+        label="Survey Type",
+    )
+
     class Meta:
         model = SurveySession
-        fields = ["customer", "template"]
+        fields = ["customer", "template", "is_internal"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -265,8 +274,12 @@ class SurveyAssignmentForm(forms.ModelForm):
             status=SurveyTemplate.Status.READY,
             is_archived=False,
         ).order_by("name")
-        for field in self.fields.values():
-            field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+        self.fields["is_internal"].choices = (("true", "Internal"), ("false", "External"))
+        for name, field in self.fields.items():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
+            else:
+                field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
 
 
 class UserManageForm(forms.ModelForm):
