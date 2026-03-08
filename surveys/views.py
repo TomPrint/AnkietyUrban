@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import BooleanField, Case, Count, Max, Q, Value, When
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -894,6 +894,8 @@ def question_list(request: HttpRequest) -> HttpResponse:
     sort_map = {
         "title": "title",
         "type": "question_type",
+        "special": "is_finishing",
+        "link": "has_link",
         "options": "choices_count",
         "updated": "updated_at",
     }
@@ -907,7 +909,14 @@ def question_list(request: HttpRequest) -> HttpResponse:
     questions = (
         Question.objects.filter(is_system=False, is_archived=False)
         .prefetch_related("choices")
-        .annotate(choices_count=Count("choices"))
+        .annotate(
+            choices_count=Count("choices"),
+            has_link=Case(
+                When(source_url="", then=Value(False)),
+                default=Value(True),
+                output_field=BooleanField(),
+            ),
+        )
     )
     if search_query:
         questions = questions.filter(
@@ -924,7 +933,12 @@ def question_list(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "management/questions/list.html",
-        {"questions": questions, "q": search_query, "sort": sort, "dir": direction},
+        {
+            "questions": questions,
+            "q": search_query,
+            "sort": sort,
+            "dir": direction,
+        },
     )
 
 

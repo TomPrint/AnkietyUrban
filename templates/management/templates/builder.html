@@ -43,12 +43,40 @@
           </svg>
         </button>
       </div>
+      <label class="mt-3 flex items-center gap-2 text-xs font-medium text-slate-600">
+        <input id="builder-finishing-only" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+        Show only finishing
+      </label>
+      <div class="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+        <label class="inline-flex items-center gap-1">
+          <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="yes_no" />
+          Yes/No
+        </label>
+        <label class="inline-flex items-center gap-1">
+          <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="yes_no_next" />
+          Yes/No (no condition)
+        </label>
+        <label class="inline-flex items-center gap-1">
+          <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="open" />
+          Open
+        </label>
+        <label class="inline-flex items-center gap-1">
+          <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="multi_choice" />
+          Multi choice
+        </label>
+        <label class="inline-flex items-center gap-1">
+          <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="complex" />
+          Complex
+        </label>
+      </div>
       <div class="mt-3 space-y-2">
         {% for q in questions %}
         <div
           draggable="true"
           data-question-id="{{ q.id }}"
           data-question-search="{{ q.title|lower }} {{ q.get_question_type_display|lower }}"
+          data-is-finishing="{% if q.is_finishing %}1{% else %}0{% endif %}"
+          data-question-type="{{ q.question_type }}"
           class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm"
         >
           <div class="flex items-center justify-between gap-2">
@@ -202,9 +230,14 @@
     function filterQuestionList() {
       if (!questionSearchInput) return;
       const term = questionSearchInput.value.trim().toLowerCase();
+      const finishingOnly = document.getElementById("builder-finishing-only")?.checked;
+      const selectedTypes = Array.from(document.querySelectorAll("[data-type-filter]:checked")).map((el) => el.getAttribute("data-type-filter"));
       questionsDom.forEach((el) => {
         const haystack = (el.dataset.questionSearch || "").toLowerCase();
-        const match = !term || haystack.includes(term);
+        const matchTerm = !term || haystack.includes(term);
+        const matchFinishing = !finishingOnly || el.dataset.isFinishing === "1";
+        const matchType = !selectedTypes.length || selectedTypes.includes(el.dataset.questionType || "");
+        const match = matchTerm && matchFinishing && matchType;
         el.classList.toggle("hidden", !match);
       });
     }
@@ -940,6 +973,13 @@
     if (questionSearchBtn) {
       questionSearchBtn.addEventListener("click", filterQuestionList);
     }
+    const finishingOnly = document.getElementById("builder-finishing-only");
+    if (finishingOnly) {
+      finishingOnly.addEventListener("change", filterQuestionList);
+    }
+    document.querySelectorAll("[data-type-filter]").forEach((el) => {
+      el.addEventListener("change", filterQuestionList);
+    });
 
     canvas.addEventListener("dragover", (ev) => ev.preventDefault());
     canvas.addEventListener("mousemove", (ev) => {

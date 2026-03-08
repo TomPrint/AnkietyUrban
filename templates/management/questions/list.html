@@ -69,8 +69,18 @@
                 {% if sort == 'type' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
-            <th class="py-2">Special Type</th>
-            <th class="py-2">Link Attachment</th>
+            <th class="py-2">
+              <a class="question-sort-link {% if sort == 'special' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=special&dir={% if sort == 'special' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Special Type
+                {% if sort == 'special' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
+            <th class="py-2">
+              <a class="question-sort-link {% if sort == 'link' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
+                Link Attachment
+                {% if sort == 'link' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+              </a>
+            </th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
