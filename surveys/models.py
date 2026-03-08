@@ -30,6 +30,7 @@ class Customer(models.Model):
 class Question(models.Model):
     class QuestionType(models.TextChoices):
         YES_NO = "yes_no", "Yes / No"
+        YES_NO_NEXT = "yes_no_next", "Yes / No (no condition)"
         MULTI_CHOICE = "multi_choice", "Multi choice"
         OPEN = "open", "Open question"
         COMPLEX = "complex", "Complex"
@@ -42,6 +43,7 @@ class Question(models.Model):
     complex_items = models.JSONField(default=list, blank=True)
     required = models.BooleanField(default=True)
     is_system = models.BooleanField(default=False)
+    is_finishing = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,6 +83,7 @@ class SurveyTemplate(models.Model):
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    finishing_question_ids = models.JSONField(default=list, blank=True)
     start_node = models.ForeignKey(
         "TemplateNode",
         on_delete=models.SET_NULL,
@@ -108,6 +111,7 @@ class TemplateNode(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="template_nodes")
     title_override = models.CharField(max_length=500, blank=True)
     is_forced_start = models.BooleanField(default=False)
+    is_finishing_injected = models.BooleanField(default=False)
     x = models.IntegerField(default=80)
     y = models.IntegerField(default=80)
 

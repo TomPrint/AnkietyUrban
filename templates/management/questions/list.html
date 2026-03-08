@@ -69,6 +69,7 @@
                 {% if sort == 'type' %}<span class="question-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
+            <th class="py-2">Special Type</th>
             <th class="py-2">Link Attachment</th>
             <th class="py-2">Actions</th>
           </tr>
@@ -82,6 +83,13 @@
               </a>
             </td>
             <td class="py-2">{{ q.get_question_type_display }}</td>
+            <td class="py-2">
+              {% if q.is_finishing %}
+                <span class="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Finishing</span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
             <td class="py-2">
               {% if q.source_url %}
                 <a class="font-semibold text-blue-700 underline hover:text-blue-900" href="{{ q.source_url }}" target="_blank" rel="noopener noreferrer">
@@ -107,7 +115,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="4" class="py-4 text-slate-500">No questions yet.</td></tr>
+          <tr><td colspan="5" class="py-4 text-slate-500">No questions yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

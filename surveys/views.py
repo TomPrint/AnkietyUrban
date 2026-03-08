@@ -26,8 +26,61 @@ from .models import (
     TemplateNode,
 )
 
-SYSTEM_START_QUESTION_TITLE = "Imie i nazwisko osoby wypelniajacej ankiete"
-SYSTEM_START_QUESTION_HELP = "Podaj imie i nazwisko."
+SYSTEM_START_QUESTION_TITLE = "Dane podmiotu i osoby kontaktowej"
+SYSTEM_START_QUESTION_HELP = "Uzupelnij wszystkie pola kontaktowe przed rozpoczeciem ankiety."
+SYSTEM_START_COMPLEX_ITEMS = [
+    {
+        "type": Question.QuestionType.OPEN,
+        "label": "Nazwa Firmy",
+        "options": [],
+        "placeholder": "Nazwa firmy",
+        "input_kind": "text",
+        "required": True,
+    },
+    {
+        "type": Question.QuestionType.MULTI_CHOICE,
+        "label": "Forma Organizacyjna",
+        "options": [
+            "Spoldzielnia Mieszkaniowa",
+            "Wspolnota Mieszkaniowa",
+            "Firma Zarzadzajaca Nieruchomosciami",
+            "Inna",
+        ],
+        "required": True,
+    },
+    {
+        "type": Question.QuestionType.OPEN,
+        "label": "Osoba kontaktowa",
+        "options": [],
+        "placeholder": "Imie Nazwisko",
+        "input_kind": "text",
+        "required": True,
+    },
+    {
+        "type": Question.QuestionType.OPEN,
+        "label": "Telefon Kontaktowy",
+        "options": [],
+        "placeholder": "+48 600 000 000",
+        "input_kind": "phone",
+        "required": True,
+    },
+    {
+        "type": Question.QuestionType.OPEN,
+        "label": "Email",
+        "options": [],
+        "placeholder": "kontakt@firma.pl",
+        "input_kind": "email",
+        "required": True,
+    },
+    {
+        "type": Question.QuestionType.OPEN,
+        "label": "Strona WWW",
+        "options": [],
+        "placeholder": "https://twojafirma.pl",
+        "input_kind": "text",
+        "required": False,
+    },
+]
 staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
 
 
@@ -51,8 +104,9 @@ def _get_or_create_system_start_question() -> Question:
     if question is None:
         question = Question.objects.create(
             title=SYSTEM_START_QUESTION_TITLE,
-            question_type=Question.QuestionType.OPEN,
+            question_type=Question.QuestionType.COMPLEX,
             help_text=SYSTEM_START_QUESTION_HELP,
+            complex_items=SYSTEM_START_COMPLEX_ITEMS,
             required=True,
             is_system=True,
         )
@@ -62,12 +116,15 @@ def _get_or_create_system_start_question() -> Question:
     if question.title != SYSTEM_START_QUESTION_TITLE:
         question.title = SYSTEM_START_QUESTION_TITLE
         updates.append("title")
-    if question.question_type != Question.QuestionType.OPEN:
-        question.question_type = Question.QuestionType.OPEN
+    if question.question_type != Question.QuestionType.COMPLEX:
+        question.question_type = Question.QuestionType.COMPLEX
         updates.append("question_type")
     if question.help_text != SYSTEM_START_QUESTION_HELP:
         question.help_text = SYSTEM_START_QUESTION_HELP
         updates.append("help_text")
+    if question.complex_items != SYSTEM_START_COMPLEX_ITEMS:
+        question.complex_items = SYSTEM_START_COMPLEX_ITEMS
+        updates.append("complex_items")
     if not question.required:
         question.required = True
         updates.append("required")
@@ -160,6 +217,11 @@ def _validate_template_graph(template: SurveyTemplate):
         if n.question.is_archived:
             errors.append(f"Node #{n.id}: question is archived. Replace it before saving as Ready.")
             continue
+        if n.question.is_finishing and n.question.question_type == Question.QuestionType.YES_NO:
+            errors.append(
+                f"Node #{n.id}: finishing question cannot be Yes / No. Use Yes / No (no condition)."
+            )
+            continue
         if n.question.question_type == Question.QuestionType.YES_NO:
             has_yes = bool(n.end_on_yes or n.yes_node_id)
             has_no = bool(n.end_on_no or n.no_node_id)
@@ -170,6 +232,13 @@ def _validate_template_graph(template: SurveyTemplate):
         else:
             if not (n.ends_survey or n.next_node_id):
                 errors.append(f"Node #{n.id}: NEXT path is missing (add link or mark end).")
+        if n.question.is_finishing:
+            if n.yes_node_id or n.no_node_id or n.end_on_yes or n.end_on_no:
+                errors.append(f"Node #{n.id}: finishing node can only use NEXT path.")
+            if n.next_node_id:
+                next_node = node_map.get(n.next_node_id)
+                if next_node and not next_node.question.is_finishing:
+                    errors.append(f"Node #{n.id}: finishing node NEXT can point only to finishing node.")
 
     reachable = set()
     stack = [start.id]
@@ -257,12 +326,14 @@ def _validate_target_node(template: SurveyTemplate, node_id: str | None, source_
     target = get_object_or_404(TemplateNode, pk=node_id, template=template)
     if target.is_forced_start:
         raise Http404("Cannot link to forced start node.")
+    if source_node is not None and source_node.question.is_finishing and not target.question.is_finishing:
+        raise ValueError("Finishing node can connect only to another finishing node.")
     incoming_qs = template.nodes.filter(
         Q(next_node=target) | Q(yes_node=target) | Q(no_node=target)
     )
     if source_node is not None:
         incoming_qs = incoming_qs.exclude(pk=source_node.pk)
-    if incoming_qs.exists():
+    if (not target.question.is_finishing) and incoming_qs.exists():
         raise ValueError(f"Node #{target.id} already has an incoming connection.")
     return target
 
@@ -273,6 +344,7 @@ def _serialize_node(template: SurveyTemplate, n: TemplateNode):
         "question_id": n.question_id,
         "question_title": n.question.title,
         "question_type": n.question.question_type,
+        "is_finishing_question": bool(n.question.is_finishing),
         "x": n.x,
         "y": n.y,
         "next_id": n.next_node_id,
@@ -376,7 +448,7 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
     answer.selected_choices.clear()
 
     q_type = node.question.question_type
-    if q_type == Question.QuestionType.YES_NO:
+    if q_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
         answer.yes_no_answer = value == "yes"
         answer.save(update_fields=["yes_no_answer", "updated_at"])
         return
@@ -395,7 +467,7 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
 
 def _answer_value_display(answer: SurveyAnswer) -> str:
     q_type = answer.question.question_type
-    if q_type == Question.QuestionType.YES_NO:
+    if q_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
         if answer.yes_no_answer is True:
             return "Yes"
         if answer.yes_no_answer is False:
@@ -612,7 +684,12 @@ def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
 
 @staff_required
 def customer_list(request: HttpRequest) -> HttpResponse:
-    customers = Customer.objects.filter(is_archived=False)
+    customers = Customer.objects.filter(is_archived=False).annotate(
+        survays_count=Count(
+            "survey_sessions",
+            filter=Q(survey_sessions__is_archived=False),
+        )
+    )
     return render(request, "management/customers/list.html", {"customers": customers})
 
 
@@ -1178,7 +1255,8 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
         node.end_on_no = end_on_no == "true"
 
     # Enforce consistent branching semantics on save.
-    if node.question.question_type == Question.QuestionType.YES_NO:
+    is_decision_yes_no = node.question.question_type == Question.QuestionType.YES_NO and not node.question.is_finishing
+    if is_decision_yes_no:
         node.next_node = None
         node.ends_survey = False
     else:
@@ -1186,8 +1264,21 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
         node.no_node = None
         node.end_on_yes = False
         node.end_on_no = False
+        if node.next_node_id is not None:
+            node.ends_survey = False
     if node.is_forced_start:
         node.ends_survey = False
+    if node.question.is_finishing:
+        if node.question.question_type == Question.QuestionType.YES_NO:
+            return JsonResponse(
+                {"ok": False, "error": "Finishing question cannot use Yes / No. Use Yes / No (no condition)."},
+                status=400,
+            )
+        if node.next_node and not node.next_node.question.is_finishing:
+            return JsonResponse(
+                {"ok": False, "error": "Finishing node can connect only to another finishing node."},
+                status=400,
+            )
 
     node.save()
     template.status = SurveyTemplate.Status.DRAFT

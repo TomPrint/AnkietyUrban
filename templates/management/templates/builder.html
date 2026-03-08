@@ -51,7 +51,12 @@
           data-question-search="{{ q.title|lower }} {{ q.get_question_type_display|lower }}"
           class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm"
         >
-          <div class="font-semibold">{{ q.title }}</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-semibold">{{ q.title }}</div>
+            {% if q.is_finishing %}
+              <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">FINISHING</span>
+            {% endif %}
+          </div>
           <div class="text-xs uppercase text-slate-500">{{ q.get_question_type_display }}</div>
         </div>
         {% empty %}
@@ -61,7 +66,7 @@
     </aside>
 
     <div class="rounded-xl bg-white p-2 shadow">
-      <div id="builder-canvas" class="relative h-[70vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
+      <div id="builder-canvas" class="relative h-[88vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
         <svg id="link-layer" class="pointer-events-none absolute inset-0 h-full w-full"></svg>
       </div>
     </div>
@@ -236,6 +241,7 @@
         const nextConfigured = hasNextTarget || endNext;
         const yesConfigured = hasYesTarget || endYes;
         const noConfigured = hasNoTarget || endNo;
+        const isDecisionYesNo = node.question_type === "yes_no" && !node.is_finishing_question;
 
         const el = document.createElement("div");
         el.className =
@@ -246,15 +252,16 @@
         el.dataset.nodeId = String(node.id);
         el.innerHTML = `
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-1">
               <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
               <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
+              ${node.is_finishing_question ? '<span class="rounded bg-amber-100 px-1 py-0 text-[9px] font-semibold text-amber-800">FINISHING</span>' : ""}
             </div>
             ${node.is_forced_start ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">FORCED START</span>' : node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
           </div>
           <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
           <div class="mt-2 flex flex-wrap gap-1">
-            ${node.question_type === "yes_no"
+            ${isDecisionYesNo
               ? `
                 <button
                   type="button"
@@ -324,21 +331,26 @@
       return { x: node.x + 112, y: node.y + 34 };
     }
 
-    function drawLine(fromNode, toNode, color, label) {
+    function drawLine(fromNode, toNode, color, label, lineOffset = 0) {
       const a = nodeCenter(fromNode);
       const b = nodeCenter(toNode);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ox = (-dy / len) * lineOffset;
+      const oy = (dx / len) * lineOffset;
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", a.x);
-      line.setAttribute("y1", a.y);
-      line.setAttribute("x2", b.x);
-      line.setAttribute("y2", b.y);
+      line.setAttribute("x1", a.x + ox);
+      line.setAttribute("y1", a.y + oy);
+      line.setAttribute("x2", b.x + ox);
+      line.setAttribute("y2", b.y + oy);
       line.setAttribute("stroke", color);
       line.setAttribute("stroke-width", "2");
       svg.appendChild(line);
 
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("x", (a.x + b.x) / 2);
-      text.setAttribute("y", (a.y + b.y) / 2 - 4);
+      text.setAttribute("x", (a.x + b.x) / 2 + ox);
+      text.setAttribute("y", (a.y + b.y) / 2 + oy - 4);
       text.setAttribute("font-size", "10");
       text.setAttribute("fill", color);
       text.textContent = label;
@@ -412,22 +424,27 @@
         };
       }
 
-      function drawPreviewEdge(fromNode, toNode, color, label) {
+      function drawPreviewEdge(fromNode, toNode, color, label, lineOffset = 0) {
         const a = adjustedCenter(fromNode);
         const b = adjustedCenter(toNode);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ox = (-dy / len) * lineOffset;
+        const oy = (dx / len) * lineOffset;
 
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", a.x);
-        line.setAttribute("y1", a.y);
-        line.setAttribute("x2", b.x);
-        line.setAttribute("y2", b.y);
+        line.setAttribute("x1", a.x + ox);
+        line.setAttribute("y1", a.y + oy);
+        line.setAttribute("x2", b.x + ox);
+        line.setAttribute("y2", b.y + oy);
         line.setAttribute("stroke", color);
         line.setAttribute("stroke-width", "2");
         psvg.appendChild(line);
 
         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", String((a.x + b.x) / 2));
-        text.setAttribute("y", String((a.y + b.y) / 2 - 4));
+        text.setAttribute("x", String((a.x + b.x) / 2 + ox));
+        text.setAttribute("y", String((a.y + b.y) / 2 + oy - 4));
         text.setAttribute("font-size", "10");
         text.setAttribute("fill", color);
         text.textContent = label;
@@ -435,12 +452,16 @@
       }
 
       for (const node of nodes.values()) {
-        if (node.question_type === "yes_no") {
-          if (node.yes_id && nodes.has(node.yes_id)) {
-            drawPreviewEdge(node, nodes.get(node.yes_id), "#16a34a", "YES");
+        const isDecisionYesNo = node.question_type === "yes_no" && !node.is_finishing_question;
+        if (isDecisionYesNo) {
+          const yesTarget = node.yes_id && nodes.has(node.yes_id) ? nodes.get(node.yes_id) : null;
+          const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
+          const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
+          if (yesTarget) {
+            drawPreviewEdge(node, yesTarget, "#16a34a", "YES", sameTarget ? -6 : 0);
           }
-          if (node.no_id && nodes.has(node.no_id)) {
-            drawPreviewEdge(node, nodes.get(node.no_id), "#dc2626", "NO");
+          if (noTarget) {
+            drawPreviewEdge(node, noTarget, "#dc2626", "NO", sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
           drawPreviewEdge(node, nodes.get(node.next_id), "#0284c7", "NEXT");
@@ -501,11 +522,14 @@
       svg.innerHTML = "";
       for (const node of nodes.values()) {
         if (node.question_type === "yes_no") {
-          if (node.yes_id && nodes.has(node.yes_id)) {
-            drawLine(node, nodes.get(node.yes_id), "#16a34a", "YES");
+          const yesTarget = node.yes_id && nodes.has(node.yes_id) ? nodes.get(node.yes_id) : null;
+          const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
+          const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
+          if (yesTarget) {
+            drawLine(node, yesTarget, "#16a34a", "YES", sameTarget ? -6 : 0);
           }
-          if (node.no_id && nodes.has(node.no_id)) {
-            drawLine(node, nodes.get(node.no_id), "#dc2626", "NO");
+          if (noTarget) {
+            drawLine(node, noTarget, "#dc2626", "NO", sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
           drawLine(node, nodes.get(node.next_id), "#0284c7", "NEXT");
@@ -538,6 +562,24 @@
         updateConnectStatus();
         render();
         return;
+      }
+      if (source.is_finishing_question) {
+        if (connectMode.edge !== "next") {
+          connectMode = null;
+          updateConnectStatus();
+          showValidationErrors(["Finishing node can use only NEXT connection."]);
+          showToast("Connection blocked", "error");
+          render();
+          return;
+        }
+        if (!target.is_finishing_question) {
+          connectMode = null;
+          updateConnectStatus();
+          showValidationErrors(["Finishing node can connect only to another finishing node."]);
+          showToast("Connection blocked", "error");
+          render();
+          return;
+        }
       }
       if (hasIncomingFromOtherNode(targetId, source.id)) {
         connectMode = null;
@@ -577,10 +619,12 @@
     }
 
     function fillTargetOptions(selectEl, currentNodeId, selectedValue) {
-      selectEl.innerHTML = '<option value="">-- end --</option>';
+      selectEl.innerHTML = '<option value="">---</option>';
+      const currentNode = nodes.get(Number(currentNodeId));
       for (const n of nodes.values()) {
         if (n.id === currentNodeId) continue;
         if (n.is_forced_start) continue;
+        if (currentNode && currentNode.is_finishing_question && !n.is_finishing_question) continue;
         if (hasIncomingFromOtherNode(n.id, currentNodeId)) continue;
         const opt = document.createElement("option");
         opt.value = String(n.id);
@@ -592,6 +636,10 @@
 
     function hasIncomingFromOtherNode(targetId, sourceId) {
       const targetNum = Number(targetId);
+      const targetNode = nodes.get(targetNum);
+      if (targetNode && targetNode.is_finishing_question) {
+        return false;
+      }
       for (const n of nodes.values()) {
         if (n.id === Number(sourceId)) continue;
         if (Number(n.next_id) === targetNum || Number(n.yes_id) === targetNum || Number(n.no_id) === targetNum) {
@@ -631,7 +679,8 @@
       deleteBtn.classList.toggle("opacity-50", isForcedStart);
       deleteBtn.classList.toggle("cursor-not-allowed", isForcedStart);
 
-      const isYesNo = node.question_type === "yes_no";
+      const isYesNo = node.question_type === "yes_no" && !node.is_finishing_question;
+      const hasNextTarget = !!node.next_id;
       document.getElementById("block-next").style.display = isYesNo ? "none" : "";
       document.getElementById("block-end-next").style.display = isYesNo ? "none" : "flex";
       document.getElementById("block-yes").style.display = isYesNo ? "" : "none";
@@ -639,16 +688,18 @@
       document.getElementById("block-no").style.display = isYesNo ? "" : "none";
       document.getElementById("block-end-no").style.display = isYesNo ? "flex" : "none";
       nextField.disabled = !!node.ends_survey || isYesNo;
+      endNextField.disabled = isYesNo || hasNextTarget;
       yesField.disabled = !isYesNo || !!node.end_on_yes;
       noField.disabled = !isYesNo || !!node.end_on_no;
       endYesField.disabled = !isYesNo || !!node.yes_id;
       endNoField.disabled = !isYesNo || !!node.no_id;
+      document.getElementById("block-end-next").classList.toggle("opacity-60", endNextField.disabled);
       document.getElementById("block-end-yes").classList.toggle("opacity-60", endYesField.disabled);
       document.getElementById("block-end-no").classList.toggle("opacity-60", endNoField.disabled);
     }
 
     function normalizeNodeState(node) {
-      const isYesNo = node.question_type === "yes_no";
+      const isYesNo = node.question_type === "yes_no" && !node.is_finishing_question;
       if (isYesNo) {
         node.next_id = null;
         node.ends_survey = false;
@@ -659,6 +710,7 @@
         node.no_id = null;
         node.end_on_yes = false;
         node.end_on_no = false;
+        if (node.next_id) node.ends_survey = false;
       }
     }
 
@@ -818,7 +870,7 @@
       const endNextField = document.getElementById("f-end-next");
       const endYesField = document.getElementById("f-end-yes");
       const endNoField = document.getElementById("f-end-no");
-      if (node.question_type === "yes_no") {
+      if (node.question_type === "yes_no" && !node.is_finishing_question) {
         node.next_id = null;
         node.ends_survey = false;
         node.yes_id = yesField.value ? Number(yesField.value) : null;
@@ -827,7 +879,7 @@
         node.end_on_no = node.no_id ? false : endNoField.checked;
       } else {
         node.next_id = nextField.value ? Number(nextField.value) : null;
-        node.ends_survey = endNextField.checked;
+        node.ends_survey = node.next_id ? false : endNextField.checked;
         node.yes_id = null;
         node.no_id = null;
         node.end_on_yes = false;
@@ -862,11 +914,11 @@
     }
 
     function setCanvasSize() {
-      let maxX = 1200;
-      let maxY = 700;
+      let maxX = 1500;
+      let maxY = 950;
       for (const n of nodes.values()) {
         maxX = Math.max(maxX, n.x + 300);
-        maxY = Math.max(maxY, n.y + 150);
+        maxY = Math.max(maxY, n.y + 420);
       }
       svg.style.width = `${maxX}px`;
       svg.style.height = `${maxY}px`;

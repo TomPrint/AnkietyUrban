@@ -1,7 +1,7 @@
 import json
-
 from django import forms
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
 
 from .models import Customer, Question, QuestionChoice, SurveyAnswer, SurveySession, SurveyTemplate, TemplateNode
 
@@ -26,7 +26,7 @@ class DynamicQuestionForm(forms.Form):
             "label": question.title,
             "help_text": question.help_text,
         }
-        if question.question_type == Question.QuestionType.YES_NO:
+        if question.question_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
             return forms.ChoiceField(
                 choices=(("yes", "Yes"), ("no", "No")),
                 widget=forms.RadioSelect,
@@ -45,11 +45,12 @@ class DynamicQuestionForm(forms.Form):
             item_type = item.get("type")
             item_label = item.get("label", f"Item {idx + 1}")
             field_name = f"complex_{idx}"
+            item_required = bool(item.get("required", True))
             if item_type == Question.QuestionType.YES_NO:
                 self.fields[field_name] = forms.ChoiceField(
                     choices=(("yes", "Yes"), ("no", "No")),
                     widget=forms.RadioSelect,
-                    required=True,
+                    required=item_required,
                     label=item_label,
                 )
             elif item_type == Question.QuestionType.MULTI_CHOICE:
@@ -57,15 +58,45 @@ class DynamicQuestionForm(forms.Form):
                 self.fields[field_name] = forms.MultipleChoiceField(
                     choices=[(str(i), opt) for i, opt in enumerate(options)],
                     widget=forms.CheckboxSelectMultiple,
-                    required=True,
+                    required=item_required,
                     label=item_label,
                 )
             else:
-                self.fields[field_name] = forms.CharField(
-                    widget=forms.Textarea(attrs={"rows": 3}),
-                    required=True,
-                    label=item_label,
-                )
+                placeholder = (item.get("placeholder") or "").strip()
+                input_kind = (item.get("input_kind") or "text").strip().lower()
+                attrs = {"class": "w-full rounded border border-slate-300 px-3 py-2 text-base"}
+                if placeholder:
+                    attrs["placeholder"] = placeholder
+                if input_kind == "phone":
+                    self.fields[field_name] = forms.CharField(
+                        widget=forms.TextInput(attrs=attrs),
+                        required=item_required,
+                        label=item_label,
+                        validators=[
+                            RegexValidator(
+                                regex=r"^\+?[0-9][0-9\s\-()]{6,}$",
+                                message="Podaj poprawny numer telefonu.",
+                            )
+                        ],
+                    )
+                elif input_kind == "email":
+                    self.fields[field_name] = forms.EmailField(
+                        widget=forms.EmailInput(attrs=attrs),
+                        required=item_required,
+                        label=item_label,
+                    )
+                elif input_kind == "url":
+                    self.fields[field_name] = forms.URLField(
+                        widget=forms.URLInput(attrs=attrs),
+                        required=item_required,
+                        label=item_label,
+                    )
+                else:
+                    self.fields[field_name] = forms.CharField(
+                        widget=forms.TextInput(attrs=attrs),
+                        required=item_required,
+                        label=item_label,
+                    )
 
     def get_answer_payload(self):
         if not self.is_complex:
@@ -94,7 +125,7 @@ class DynamicQuestionForm(forms.Form):
                 if field_name in self.fields:
                     self.initial[field_name] = item.get("value")
             return
-        if self.question.question_type == Question.QuestionType.YES_NO:
+        if self.question.question_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
             if answer.yes_no_answer is not None:
                 self.initial["answer"] = "yes" if answer.yes_no_answer else "no"
             return
@@ -122,6 +153,7 @@ class QuestionManageForm(forms.ModelForm):
         fields = [
             "title",
             "question_type",
+            "is_finishing",
             "help_text",
             "source_url",
             "promotional_text",
@@ -132,7 +164,12 @@ class QuestionManageForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
+            else:
+                field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+        self.fields["is_finishing"].label = "Finishing question"
+        self.fields["is_finishing"].help_text = "Use this question as a finishing-type node in template builder."
         self.fields["source_url"].label = "Promotional URL"
         self.fields["source_url"].help_text = "Optional external URL shown under this question."
         self.fields["promotional_text"].label = "Promotional Text"
@@ -145,7 +182,10 @@ class QuestionManageForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         question_type = cleaned.get("question_type")
+        is_finishing = bool(cleaned.get("is_finishing"))
         options = [line.strip() for line in cleaned.get("options_text", "").splitlines() if line.strip()]
+        if is_finishing and question_type == Question.QuestionType.YES_NO:
+            self.add_error("question_type", "Finishing question cannot use Yes / No. Use Yes / No (no condition).")
         if question_type == Question.QuestionType.MULTI_CHOICE and not options:
             self.add_error("options_text", "Multi choice question needs at least one option.")
         if question_type == Question.QuestionType.COMPLEX:

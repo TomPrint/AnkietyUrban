@@ -12,7 +12,7 @@
   </section>
 
   <section class="mt-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8">
-    <form method="post" class="space-y-6 uv-survey-form">
+    <form method="post" class="space-y-6 uv-survey-form{% if question.is_system and question.question_type == 'complex' %} uv-complex-forced{% endif %}">
       {% csrf_token %}
       <div>
         <h2 class="text-lg font-semibold">{{ question.title }}</h2>
