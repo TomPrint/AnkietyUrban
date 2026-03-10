@@ -166,7 +166,12 @@
       }
 
       function parseInitial() {
-        const lines = initialRaw.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
+        const decoded = initialRaw
+          .replace(/\\u000A/gi, "\n")
+          .replace(/\\u000D/gi, "\r")
+          .replace(/\\n/g, "\n")
+          .replace(/\\r/g, "\r");
+        const lines = decoded.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
         return lines.map((line) => {
           const prefix = prefixes.find((p) => line.toLowerCase().startsWith((p + " ").toLowerCase()) || line.toLowerCase() === p.toLowerCase()) || "";
           if (!prefix) return { prefix: "", text: line };
@@ -176,7 +181,7 @@
 
       function buildRow(value = { prefix: "", text: "" }) {
         const row = document.createElement("div");
-        row.className = "grid grid-cols-[120px_1fr] gap-2";
+        row.className = "grid grid-cols-[120px_1fr_auto] gap-2";
         const select = document.createElement("select");
         select.className = "rounded border border-slate-300 px-2 py-2";
         const emptyOpt = document.createElement("option");
@@ -196,8 +201,15 @@
         input.placeholder = "Wpisz adres";
         input.setAttribute("list", "address-suggestions");
         input.value = value.text || "";
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "rounded border border-slate-300 px-2 py-2 text-sm font-semibold text-slate-600";
+        removeBtn.textContent = "X";
+        removeBtn.setAttribute("aria-label", "Usun adres");
+        removeBtn.dataset.removeRow = "1";
         row.appendChild(select);
         row.appendChild(input);
+        row.appendChild(removeBtn);
         return row;
       }
 
@@ -239,6 +251,17 @@
         ensureTrailingEmptyRow();
       });
       rowsWrap.addEventListener("change", () => {
+        syncHidden();
+        ensureTrailingEmptyRow();
+      });
+      rowsWrap.addEventListener("click", (ev) => {
+        const btn = ev.target.closest('button[data-remove-row="1"]');
+        if (!btn) return;
+        const row = btn.closest("div");
+        if (row) row.remove();
+        if (!rowsWrap.children.length) {
+          rowsWrap.appendChild(buildRow());
+        }
         syncHidden();
         ensureTrailingEmptyRow();
       });
