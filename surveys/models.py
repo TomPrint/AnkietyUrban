@@ -32,6 +32,7 @@ class Question(models.Model):
         YES_NO = "yes_no", "Yes / No"
         YES_NO_NEXT = "yes_no_next", "Yes / No (no condition)"
         MULTI_CHOICE = "multi_choice", "Multi choice"
+        OPEN_WITH_LIST = "open_with_list", "Adress List"
         OPEN = "open", "Open question"
         COMPLEX = "complex", "Complex"
 

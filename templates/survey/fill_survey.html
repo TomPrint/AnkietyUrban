@@ -37,17 +37,33 @@
       </div>
 
       <div class="space-y-2 uv-answer-shell">
-        {% for field in form %}
-          <div class="space-y-1">
-            {% if form.fields|length > 1 %}
-              <label class="block text-sm font-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {% endif %}
-            {{ field }}
-            {% if field.errors %}
-              <p class="text-sm text-red-700">{{ field.errors|join:", " }}</p>
-            {% endif %}
+        {% if question.question_type == "open_with_list" %}
+          {{ form.answer }}
+          <div
+            id="open-with-list-builder"
+            data-prefixes='["ul.","al.","pl.","skwer","os.","rondo","bulwar","pasaz","trakt","promenada","droga"]'
+            data-suggestions='[{% for s in form.open_with_list_suggestions %}"{{ s|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
+            data-initial="{{ form.answer.value|default:''|escapejs }}"
+          >
+            <datalist id="address-suggestions"></datalist>
+            <div id="address-rows" class="space-y-2"></div>
           </div>
-        {% endfor %}
+          {% if form.answer.errors %}
+            <p class="text-sm text-red-700">{{ form.answer.errors|join:", " }}</p>
+          {% endif %}
+        {% else %}
+          {% for field in form %}
+            <div class="space-y-1">
+              {% if form.fields|length > 1 %}
+                <label class="block text-sm font-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {% endif %}
+              {{ field }}
+              {% if field.errors %}
+                <p class="text-sm text-red-700">{{ field.errors|join:", " }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% endif %}
       </div>
 
       {% if consent_error %}
@@ -132,6 +148,102 @@
 </main>
 <script>
   (function () {
+    const builder = document.getElementById("open-with-list-builder");
+    if (builder) {
+      const hidden = document.getElementById("id_answer");
+      const rowsWrap = document.getElementById("address-rows");
+      const datalist = document.getElementById("address-suggestions");
+      const prefixes = JSON.parse(builder.dataset.prefixes || "[]");
+      const suggestions = JSON.parse(builder.dataset.suggestions || "[]");
+      const initialRaw = builder.dataset.initial || "";
+      if (datalist) {
+        datalist.innerHTML = "";
+        suggestions.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s;
+          datalist.appendChild(opt);
+        });
+      }
+
+      function parseInitial() {
+        const lines = initialRaw.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
+        return lines.map((line) => {
+          const prefix = prefixes.find((p) => line.toLowerCase().startsWith((p + " ").toLowerCase()) || line.toLowerCase() === p.toLowerCase()) || "";
+          if (!prefix) return { prefix: "", text: line };
+          return { prefix, text: line.slice(prefix.length).trim() };
+        });
+      }
+
+      function buildRow(value = { prefix: "", text: "" }) {
+        const row = document.createElement("div");
+        row.className = "grid grid-cols-[120px_1fr] gap-2";
+        const select = document.createElement("select");
+        select.className = "rounded border border-slate-300 px-2 py-2";
+        const emptyOpt = document.createElement("option");
+        emptyOpt.value = "";
+        emptyOpt.textContent = "---";
+        select.appendChild(emptyOpt);
+        prefixes.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p;
+          if (value.prefix === p) opt.selected = true;
+          select.appendChild(opt);
+        });
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "rounded border border-slate-300 px-3 py-2";
+        input.placeholder = "Wpisz adres";
+        input.setAttribute("list", "address-suggestions");
+        input.value = value.text || "";
+        row.appendChild(select);
+        row.appendChild(input);
+        return row;
+      }
+
+      function collectRows() {
+        return Array.from(rowsWrap.children).map((row) => {
+          const [select, input] = row.querySelectorAll("select,input");
+          return { prefix: (select?.value || "").trim(), text: (input?.value || "").trim() };
+        });
+      }
+
+      function ensureTrailingEmptyRow() {
+        const rows = collectRows();
+        if (!rows.length) {
+          rowsWrap.appendChild(buildRow());
+          return;
+        }
+        const last = rows[rows.length - 1];
+        if (last.prefix && last.text) {
+          rowsWrap.appendChild(buildRow());
+        }
+      }
+
+      function syncHidden() {
+        const payload = collectRows().filter((r) => r.prefix || r.text);
+        if (hidden) hidden.value = JSON.stringify(payload);
+      }
+
+      const initialRows = parseInitial();
+      if (initialRows.length) {
+        initialRows.forEach((r) => rowsWrap.appendChild(buildRow(r)));
+      } else {
+        rowsWrap.appendChild(buildRow());
+      }
+      ensureTrailingEmptyRow();
+      syncHidden();
+
+      rowsWrap.addEventListener("input", () => {
+        syncHidden();
+        ensureTrailingEmptyRow();
+      });
+      rowsWrap.addEventListener("change", () => {
+        syncHidden();
+        ensureTrailingEmptyRow();
+      });
+    }
+
     const consentBlock = document.getElementById("consent-required-block");
     const submitBtn = document.getElementById("survey-submit-btn");
     if (!consentBlock || !submitBtn) return;

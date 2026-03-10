@@ -2,8 +2,44 @@ import json
 from django import forms
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from django.utils.html import format_html, format_html_join
 
 from .models import Customer, Question, QuestionChoice, SurveyAnswer, SurveySession, SurveyTemplate, TemplateNode
+
+ADDRESS_PREFIX_CHOICES = [
+    "ul.",
+    "al.",
+    "pl.",
+    "skwer",
+    "os.",
+    "rondo",
+    "bulwar",
+    "pasaz",
+    "trakt",
+    "promenada",
+    "droga",
+]
+
+
+class DatalistTextInput(forms.TextInput):
+    def __init__(self, *args, options=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.options = [str(opt).strip() for opt in (options or []) if str(opt).strip()]
+
+    def render(self, name, value, attrs=None, renderer=None):
+        attrs = attrs.copy() if attrs else {}
+        if not self.options:
+            return super().render(name, value, attrs=attrs, renderer=renderer)
+        datalist_id = attrs.get("list") or f"id_{name}_list"
+        attrs["list"] = datalist_id
+        input_html = super().render(name, value, attrs=attrs, renderer=renderer)
+        options_html = format_html_join(
+            "",
+            "<option value=\"{}\"></option>",
+            ((opt,) for opt in self.options),
+        )
+        datalist_html = format_html("<datalist id=\"{}\">{}</datalist>", datalist_id, options_html)
+        return format_html("{}{}", input_html, datalist_html)
 
 
 class DynamicQuestionForm(forms.Form):
@@ -14,11 +50,16 @@ class DynamicQuestionForm(forms.Form):
         self.node = node
         self.question = node.question
         self.is_complex = self.question.question_type == Question.QuestionType.COMPLEX
+        self.address_prefixes = ADDRESS_PREFIX_CHOICES
+        self.open_with_list_suggestions = [opt.label for opt in self.question.choices.all()] if self.question_id_is_open_with_list() else []
         if self.is_complex:
             self.fields.pop("answer", None)
             self._build_complex_fields()
         else:
             self.fields["answer"] = self._build_field(self.question)
+
+    def question_id_is_open_with_list(self):
+        return self.question.question_type == Question.QuestionType.OPEN_WITH_LIST
 
     def _build_field(self, question: Question):
         common = {
@@ -38,7 +79,39 @@ class DynamicQuestionForm(forms.Form):
                 widget=forms.CheckboxSelectMultiple,
                 **common,
             )
+        if question.question_type == Question.QuestionType.OPEN_WITH_LIST:
+            return forms.CharField(
+                widget=forms.HiddenInput(),
+                **common,
+            )
         return forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), **common)
+
+    def clean_answer(self):
+        answer = self.cleaned_data.get("answer", "")
+        if not self.question_id_is_open_with_list():
+            return answer
+        try:
+            payload = json.loads(answer or "[]")
+        except json.JSONDecodeError:
+            raise forms.ValidationError("Invalid address list format.")
+        if not isinstance(payload, list):
+            raise forms.ValidationError("Invalid address list format.")
+        lines = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            prefix = str(item.get("prefix", "")).strip()
+            text = str(item.get("text", "")).strip()
+            if not prefix and not text:
+                continue
+            if prefix not in ADDRESS_PREFIX_CHOICES:
+                raise forms.ValidationError("Choose a valid address prefix.")
+            if not text:
+                raise forms.ValidationError("Address value cannot be empty.")
+            lines.append(f"{prefix} {text}".strip())
+        if not lines:
+            raise forms.ValidationError("Add at least one address.")
+        return "\n".join(lines)
 
     def _build_complex_fields(self):
         for idx, item in enumerate(self.question.complex_items or []):
@@ -263,7 +336,9 @@ class QuestionManageForm(forms.ModelForm):
             obj.complex_items = []
         obj.save(update_fields=["required", "complex_items", "updated_at"])
         obj.choices.all().delete()
-        if obj.question_type == Question.QuestionType.MULTI_CHOICE:
+        if obj.question_type == Question.QuestionType.MULTI_CHOICE or (
+            obj.question_type == Question.QuestionType.OPEN_WITH_LIST and self.cleaned_data.get("options_text", "").strip()
+        ):
             options = [line.strip() for line in self.cleaned_data.get("options_text", "").splitlines() if line.strip()]
             QuestionChoice.objects.bulk_create(
                 [QuestionChoice(question=obj, label=label, order=index) for index, label in enumerate(options, start=1)]
