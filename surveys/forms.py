@@ -79,6 +79,11 @@ class DynamicQuestionForm(forms.Form):
                 widget=forms.CheckboxSelectMultiple,
                 **common,
             )
+        if question.question_type == Question.QuestionType.OPEN_NUMERIC:
+            return forms.DecimalField(
+                widget=forms.NumberInput(attrs={"step": "any"}),
+                **common,
+            )
         if question.question_type == Question.QuestionType.OPEN_WITH_LIST:
             return forms.CharField(
                 widget=forms.HiddenInput(),

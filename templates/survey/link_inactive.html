@@ -10,7 +10,7 @@
       This survey link has been deactivated by management.
     </p>
     <p class="mt-1 text-sm text-slate-500">
-      Company: {{ session.customer.company_name }}
+      Company: {{ session_customer_name|default:session.customer.company_name }}
     </p>
   </section>
 </main>

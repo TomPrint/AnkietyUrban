@@ -310,6 +310,51 @@ def _resolve_next_node(node: TemplateNode, answer_data):
     return None
 
 
+def _resolve_previous_node(session: SurveySession, current_node: TemplateNode) -> TemplateNode | None:
+    template = session.template
+    start = _start_node(template)
+    if not start:
+        return None
+    if current_node.id == start.id:
+        return None
+
+    nodes = {n.id: n for n in template.nodes.select_related("question").all()}
+    answers_by_node = {a.node_id: a for a in session.answers.only("node_id", "yes_no_answer")}
+    seen = set()
+    prev_id = None
+    cursor_id = start.id
+
+    while cursor_id and cursor_id in nodes and cursor_id not in seen:
+        if cursor_id == current_node.id:
+            return nodes.get(prev_id) if prev_id else None
+        seen.add(cursor_id)
+        node = nodes[cursor_id]
+        answer = answers_by_node.get(cursor_id)
+        if not answer:
+            break
+
+        next_id = None
+        if node.question.question_type == Question.QuestionType.YES_NO:
+            if answer.yes_no_answer is None:
+                break
+            if answer.yes_no_answer is True:
+                if node.end_on_yes:
+                    break
+                next_id = node.yes_node_id
+            else:
+                if node.end_on_no:
+                    break
+                next_id = node.no_node_id
+        else:
+            if node.ends_survey:
+                break
+            next_id = node.next_node_id
+
+        prev_id = cursor_id
+        cursor_id = next_id
+    return None
+
+
 def _start_node_or_404(template: SurveyTemplate, *, require_ready: bool = True):
     _ensure_forced_start_node(template)
     if require_ready and template.status != SurveyTemplate.Status.READY:
@@ -370,6 +415,18 @@ def _ensure_active_session(session: SurveySession):
                 "updated_at",
             ]
         )
+
+
+def _session_customer_name(session: SurveySession) -> str:
+    return (session.customer_company_name_snapshot or "").strip() or session.customer.company_name
+
+
+def _session_customer_address(session: SurveySession) -> str:
+    return (session.customer_address_snapshot or "").strip() or (session.customer.address or "")
+
+
+def _session_template_name(session: SurveySession) -> str:
+    return (session.template_name_snapshot or "").strip() or session.template.name
 
 
 def _touch_session_activity(session: SurveySession) -> bool:
@@ -461,7 +518,7 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
         answer.complex_answer = value or []
         answer.save(update_fields=["complex_answer", "updated_at"])
         return
-    answer.open_answer = value or ""
+    answer.open_answer = "" if value is None else str(value)
     answer.save(update_fields=["open_answer", "updated_at"])
 
 
@@ -756,6 +813,9 @@ def survey_assignment_portal(request: HttpRequest) -> HttpResponse:
         if request.user.is_authenticated:
             session.created_by = request.user
             session.created_by_name = request.user.username
+        session.customer_company_name_snapshot = session.customer.company_name
+        session.customer_address_snapshot = session.customer.address or ""
+        session.template_name_snapshot = session.template.name
         session.status = SurveySession.Status.OPEN
         session.current_node = _start_node(session.template)
         session.save()
@@ -862,16 +922,16 @@ def survey_snapshot_csv(request: HttpRequest, session_id: int, snapshot_id: int)
         session__is_archived=False,
     )
     session = snapshot.session
-    company_part = slugify(session.customer.company_name) or "customer"
-    template_part = slugify(session.template.name) or "template"
+    company_part = slugify(_session_customer_name(session)) or "customer"
+    template_part = slugify(_session_template_name(session)) or "template"
     filename = f"{company_part}_{template_part}_session_{session.id}_version_{snapshot.version_number}.csv"
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow(["Session ID", session.id])
-    writer.writerow(["Customer", session.customer.company_name])
-    writer.writerow(["Template", session.template.name])
+    writer.writerow(["Customer", _session_customer_name(session)])
+    writer.writerow(["Template", _session_template_name(session)])
     writer.writerow(["Version", snapshot.version_number])
     writer.writerow(["Saved At", snapshot.saved_at])
     writer.writerow(["Status", snapshot.status or ""])
@@ -951,12 +1011,49 @@ def question_create(request: HttpRequest) -> HttpResponse:
     return render(request, "management/questions/form.html", {"form": form, "title": "Create Question"})
 
 
+def _detach_question_for_live_templates(question: Question) -> bool:
+    live_node_ids = list(
+        TemplateNode.objects.filter(
+            question=question,
+            template__survey_sessions__isnull=False,
+        )
+        .values_list("id", flat=True)
+        .distinct()
+    )
+    if not live_node_ids:
+        return False
+
+    frozen = Question.objects.create(
+        title=question.title,
+        question_type=question.question_type,
+        help_text=question.help_text,
+        source_url=question.source_url,
+        promotional_text=question.promotional_text,
+        complex_items=question.complex_items,
+        required=question.required,
+        is_system=False,
+        is_finishing=question.is_finishing,
+        is_archived=False,
+    )
+    choices = list(question.choices.order_by("order", "id").values_list("label", "order"))
+    if choices:
+        from .models import QuestionChoice  # local import to avoid circulars in tooling
+
+        QuestionChoice.objects.bulk_create(
+            [QuestionChoice(question=frozen, label=label, order=order) for label, order in choices]
+        )
+    TemplateNode.objects.filter(pk__in=live_node_ids).update(question=frozen)
+    return True
+
+
 @staff_required
 def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
     form = QuestionManageForm(request.POST or None, instance=question)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        with transaction.atomic():
+            _detach_question_for_live_templates(question)
+            form.save()
         return redirect("management-questions")
     return render(request, "management/questions/form.html", {"form": form, "title": "Edit Question"})
 
@@ -991,7 +1088,9 @@ def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
 @require_POST
 def question_delete(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
-    question.archive()
+    with transaction.atomic():
+        _detach_question_for_live_templates(question)
+        question.archive()
     return redirect("management-questions")
 
 
@@ -1395,10 +1494,11 @@ class SurveyByTokenView(View):
         consent_error: str = "",
         consent_state: dict | None = None,
     ) -> HttpResponse:
-        admin_name = session.customer.company_name or "[NAZWA FIRMY]"
-        admin_city = session.customer.address or "[miasto]"
+        admin_name = _session_customer_name(session) or "[NAZWA FIRMY]"
+        admin_city = _session_customer_address(session) or "[miasto]"
         if consent_state is None:
             consent_state = _consent_state_from_session(session)
+        previous_node = _resolve_previous_node(session, node)
         return render(
             request,
             self.template_name,
@@ -1412,6 +1512,8 @@ class SurveyByTokenView(View):
                 "consent_state": consent_state,
                 "gdpr_admin_name": admin_name,
                 "gdpr_admin_city": admin_city,
+                "has_previous_node": previous_node is not None,
+                "session_customer_name": _session_customer_name(session),
             },
         )
 
@@ -1428,9 +1530,19 @@ class SurveyByTokenView(View):
         if just_opened:
             _log_session_event(session, SurveySessionEvent.EventType.LINK_OPENED, request=request)
         if not session.is_link_active:
-            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+            return render(
+                request,
+                "survey/link_inactive.html",
+                {"session": session, "session_customer_name": _session_customer_name(session)},
+                status=403,
+            )
         if session.is_archived:
-            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+            return render(
+                request,
+                "survey/link_inactive.html",
+                {"session": session, "session_customer_name": _session_customer_name(session)},
+                status=403,
+            )
         wants_edit = request.GET.get("edit") == "1"
         if _is_session_completed(session) and not wants_edit:
             return redirect("survey-thanks", token=token)
@@ -1469,9 +1581,19 @@ class SurveyByTokenView(View):
         if just_opened:
             _log_session_event(session, SurveySessionEvent.EventType.LINK_OPENED, request=request)
         if not session.is_link_active:
-            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+            return render(
+                request,
+                "survey/link_inactive.html",
+                {"session": session, "session_customer_name": _session_customer_name(session)},
+                status=403,
+            )
         if session.is_archived:
-            return render(request, "survey/link_inactive.html", {"session": session}, status=403)
+            return render(
+                request,
+                "survey/link_inactive.html",
+                {"session": session, "session_customer_name": _session_customer_name(session)},
+                status=403,
+            )
         wants_edit = request.GET.get("edit") == "1"
         if _is_session_completed(session) and not wants_edit:
             return redirect("survey-thanks", token=token)
@@ -1481,6 +1603,14 @@ class SurveyByTokenView(View):
             return redirect("survey-thanks", token=token)
 
         node = session.current_node
+        action = request.POST.get("action", "next")
+        if action == "prev":
+            previous_node = _resolve_previous_node(session, node)
+            if previous_node is not None:
+                session.current_node = previous_node
+                session.save(update_fields=["current_node", "updated_at"])
+            return redirect(reverse("survey-by-token", kwargs={"token": token}))
+
         form = DynamicQuestionForm(node=node, data=request.POST)
         if not form.is_valid():
             return self._render_form(request, session=session, node=node, form=form)
@@ -1569,12 +1699,22 @@ class SurveyByTokenView(View):
 def survey_saved(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
     if session.is_archived or not session.is_link_active:
-        return render(request, "survey/link_inactive.html", {"session": session}, status=403)
-    return render(request, "survey/saved.html", {"session": session})
+        return render(
+            request,
+            "survey/link_inactive.html",
+            {"session": session, "session_customer_name": _session_customer_name(session)},
+            status=403,
+        )
+    return render(request, "survey/saved.html", {"session": session, "session_customer_name": _session_customer_name(session)})
 
 
 def survey_thanks(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
     if session.is_archived or not session.is_link_active:
-        return render(request, "survey/link_inactive.html", {"session": session}, status=403)
-    return render(request, "survey/thanks.html", {"session": session})
+        return render(
+            request,
+            "survey/link_inactive.html",
+            {"session": session, "session_customer_name": _session_customer_name(session)},
+            status=403,
+        )
+    return render(request, "survey/thanks.html", {"session": session, "session_customer_name": _session_customer_name(session)})

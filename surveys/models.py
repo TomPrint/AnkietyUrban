@@ -33,6 +33,7 @@ class Question(models.Model):
         YES_NO_NEXT = "yes_no_next", "Yes / No (no condition)"
         MULTI_CHOICE = "multi_choice", "Multi choice"
         OPEN_WITH_LIST = "open_with_list", "Adress List"
+        OPEN_NUMERIC = "open_numeric", "Open numeric"
         OPEN = "open", "Open question"
         COMPLEX = "complex", "Complex"
 
@@ -171,6 +172,9 @@ class SurveySession(models.Model):
         related_name="created_survey_sessions",
     )
     created_by_name = models.CharField(max_length=150, blank=True, default="")
+    customer_company_name_snapshot = models.CharField(max_length=255, blank=True, default="")
+    customer_address_snapshot = models.CharField(max_length=500, blank=True, default="")
+    template_name_snapshot = models.CharField(max_length=255, blank=True, default="")
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     is_internal = models.BooleanField(default=False)
     is_link_active = models.BooleanField(default=True)
