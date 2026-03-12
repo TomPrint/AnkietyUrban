@@ -104,12 +104,18 @@
               {% if t.live_sessions_count %}
                 <div class="flex items-center gap-2">
                   <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-preview' t.id %}">Preview</a>
+                  {% if t.status == 'ready' %}
+                    <a class="rounded border border-emerald-300 px-2 py-1 text-emerald-700" href="{% url 'management-template-demo' t.id %}?restart=1">Demo</a>
+                  {% endif %}
                   <span class="text-xs font-semibold text-slate-500">Survey is live, no edit possible.</span>
                 </div>
               {% else %}
                 <div class="flex gap-2">
                   <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-edit' t.id %}">Change Name</a>
                   <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-builder' t.id %}">Open Builder</a>
+                  {% if t.status == 'ready' %}
+                    <a class="rounded border border-emerald-300 px-2 py-1 text-emerald-700" href="{% url 'management-template-demo' t.id %}?restart=1">Demo</a>
+                  {% endif %}
                   <button
                     type="button"
                     class="rounded border border-red-300 px-2 py-1 text-red-700"

@@ -31,9 +31,11 @@ class Question(models.Model):
     class QuestionType(models.TextChoices):
         YES_NO = "yes_no", "Yes / No"
         YES_NO_NEXT = "yes_no_next", "Yes / No (no condition)"
-        MULTI_CHOICE = "multi_choice", "Multi choice"
+        MULTI_CHOICE = "multi_choice", "Multi-many"
+        MULTI_ONE = "multi_one", "Multi-one"
         OPEN_WITH_LIST = "open_with_list", "Adress List"
-        OPEN_NUMERIC = "open_numeric", "Open numeric"
+        OPEN_NUMBER_LIST = "open_number_list", "Checkbox/Number"
+        OPEN_NUMERIC = "open_numeric", "Numeric"
         OPEN = "open", "Open question"
         COMPLEX = "complex", "Complex"
 

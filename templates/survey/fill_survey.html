@@ -51,13 +51,68 @@
           {% if form.answer.errors %}
             <p class="text-sm text-red-700">{{ form.answer.errors|join:", " }}</p>
           {% endif %}
+        {% elif question.question_type == "open_number_list" %}
+          {{ form.answer }}
+          <div
+            id="checkbox-number-builder"
+            data-options='[{% for c in question.choices.all %}"{{ c.label|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
+            data-initial="{{ form.answer.value|default:''|escapejs }}"
+          >
+            <div id="checkbox-number-rows" class="space-y-2"></div>
+          </div>
+          {% if form.answer.errors %}
+            <p class="text-sm text-red-700">{{ form.answer.errors|join:", " }}</p>
+          {% endif %}
         {% else %}
           {% for field in form %}
             <div class="space-y-1">
               {% if form.fields|length > 1 %}
                 <label class="block text-sm font-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {% endif %}
-              {{ field }}
+              {% if question.question_type == "complex" and "js-checkbox-number-hidden" in field.field.widget.attrs.class %}
+                <input
+                  type="hidden"
+                  name="{{ field.html_name }}"
+                  id="{{ field.id_for_label }}"
+                  value="{{ field.value|default:''|escape }}"
+                  class="js-checkbox-number-hidden"
+                  data-checkbox-options="{{ field.field.widget.attrs.data_checkbox_options|default:'[]'|escape }}"
+                >
+              {% elif question.question_type == "complex" and "js-complex-address-list-hidden" in field.field.widget.attrs.class %}
+                <input
+                  type="hidden"
+                  name="{{ field.html_name }}"
+                  id="{{ field.id_for_label }}"
+                  value="{{ field.value|default:''|escape }}"
+                  class="js-complex-address-list-hidden"
+                  data-address-prefixes="{{ field.field.widget.attrs.data_address_prefixes|default:'[]'|escape }}"
+                  data-address-suggestions="{{ field.field.widget.attrs.data_address_suggestions|default:'[]'|escape }}"
+                >
+              {% else %}
+                {{ field }}
+              {% endif %}
+              {% if question.question_type == "complex" and "js-checkbox-number-hidden" in field.field.widget.attrs.class %}
+                <div
+                  class="complex-checkbox-number-builder"
+                  data-target-id="{{ field.id_for_label }}"
+                  data-options="{{ field.field.widget.attrs.data_checkbox_options|default:'[]'|escapejs }}"
+                  data-initial="{{ field.value|default:''|escapejs }}"
+                >
+                  <div class="checkbox-number-rows space-y-2"></div>
+                </div>
+              {% endif %}
+              {% if question.question_type == "complex" and "js-complex-address-list-hidden" in field.field.widget.attrs.class %}
+                <div
+                  class="complex-address-list-builder"
+                  data-target-id="{{ field.id_for_label }}"
+                  data-prefixes="{{ field.field.widget.attrs.data_address_prefixes|default:'[]'|escapejs }}"
+                  data-suggestions="{{ field.field.widget.attrs.data_address_suggestions|default:'[]'|escapejs }}"
+                  data-initial="{{ field.value|default:''|escapejs }}"
+                >
+                  <datalist id="address-suggestions-{{ field.id_for_label }}"></datalist>
+                  <div class="address-rows space-y-2" data-datalist-id="address-suggestions-{{ field.id_for_label }}"></div>
+                </div>
+              {% endif %}
               {% if field.errors %}
                 <p class="text-sm text-red-700">{{ field.errors|join:", " }}</p>
               {% endif %}
@@ -153,14 +208,30 @@
 </main>
 <script>
   (function () {
-    const builder = document.getElementById("open-with-list-builder");
-    if (builder) {
-      const hidden = document.getElementById("id_answer");
-      const rowsWrap = document.getElementById("address-rows");
-      const datalist = document.getElementById("address-suggestions");
-      const prefixes = JSON.parse(builder.dataset.prefixes || "[]");
-      const suggestions = JSON.parse(builder.dataset.suggestions || "[]");
-      const initialRaw = builder.dataset.initial || "";
+    function parseJsonSafe(raw, fallback) {
+      if (typeof raw !== "string") return fallback;
+      try {
+        return JSON.parse(raw);
+      } catch (e1) {
+        try {
+          const normalized = raw
+            .replace(/&quot;/g, '"')
+            .replace(/&#x27;/g, "'")
+            .replace(/&#39;/g, "'");
+          return JSON.parse(normalized);
+        } catch (e2) {
+          return fallback;
+        }
+      }
+    }
+
+    function initAddressListBuilder(rowsWrap, hidden, datalist, initialRaw, prefixesRaw, suggestionsRaw, datalistId) {
+      if (!rowsWrap || !hidden) return;
+      const defaultPrefixes = ["ul.", "al.", "pl.", "skwer", "os.", "rondo", "bulwar", "pasaz", "trakt", "promenada", "droga"];
+      let prefixes = Array.isArray(prefixesRaw) ? prefixesRaw : [];
+      prefixes = prefixes.map((p) => String(p || "").trim()).filter(Boolean);
+      if (!prefixes.length) prefixes = defaultPrefixes;
+      const suggestions = Array.isArray(suggestionsRaw) ? suggestionsRaw : [];
       if (datalist) {
         datalist.innerHTML = "";
         suggestions.forEach((s) => {
@@ -171,11 +242,20 @@
       }
 
       function parseInitial() {
-        const decoded = initialRaw
+        const decoded = (initialRaw || "")
           .replace(/\\u000A/gi, "\n")
           .replace(/\\u000D/gi, "\r")
           .replace(/\\n/g, "\n")
           .replace(/\\r/g, "\r");
+        const parsed = parseJsonSafe(decoded, null);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((item) => item && typeof item === "object")
+            .map((item) => ({
+              prefix: String(item.prefix || "").trim(),
+              text: String(item.text || "").trim(),
+            }));
+        }
         const lines = decoded.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
         return lines.map((line) => {
           const prefix = prefixes.find((p) => line.toLowerCase().startsWith((p + " ").toLowerCase()) || line.toLowerCase() === p.toLowerCase()) || "";
@@ -204,7 +284,7 @@
         input.type = "text";
         input.className = "rounded border border-slate-300 px-3 py-2";
         input.placeholder = "Wpisz adres";
-        input.setAttribute("list", "address-suggestions");
+        if (datalistId) input.setAttribute("list", datalistId);
         input.value = value.text || "";
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -232,14 +312,15 @@
           return;
         }
         const last = rows[rows.length - 1];
-        if (last.prefix && last.text) {
+        const rowFilled = last.text && (last.prefix || !prefixes.length);
+        if (rowFilled) {
           rowsWrap.appendChild(buildRow());
         }
       }
 
       function syncHidden() {
         const payload = collectRows().filter((r) => r.prefix || r.text);
-        if (hidden) hidden.value = JSON.stringify(payload);
+        hidden.value = JSON.stringify(payload);
       }
 
       const initialRows = parseInitial();
@@ -272,9 +353,193 @@
       });
     }
 
+    const builder = document.getElementById("open-with-list-builder");
+    if (builder) {
+      initAddressListBuilder(
+        document.getElementById("address-rows"),
+        document.getElementById("id_answer"),
+        document.getElementById("address-suggestions"),
+        builder.dataset.initial || "",
+        parseJsonSafe(builder.dataset.prefixes || "[]", []),
+        parseJsonSafe(builder.dataset.suggestions || "[]", []),
+        "address-suggestions"
+      );
+    }
+
+    function initCheckboxNumberBuilder(rowsWrap, hidden, initialRaw, optionsRaw) {
+      if (!rowsWrap || !hidden) return;
+      let options = Array.isArray(optionsRaw) ? optionsRaw : [];
+      if (!options.length) {
+        options = parseJsonSafe(hidden.getAttribute("data-checkbox-options") || "[]", []);
+        if (!Array.isArray(options)) options = [];
+      }
+
+      function parseInitial() {
+        const decoded = (initialRaw || "")
+          .replace(/\\u000A/gi, "\n")
+          .replace(/\\u000D/gi, "\r")
+          .replace(/\\n/g, "\n")
+          .replace(/\\r/g, "\r");
+        try {
+          const parsed = JSON.parse(decoded || "[]");
+          if (!Array.isArray(parsed)) return [];
+          return parsed
+            .filter((item) => item && typeof item === "object")
+            .map((item) => ({
+              option: String(item.option || "").trim(),
+              number: String(item.number || "").trim(),
+            }));
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function buildRow(optionLabel, value = { checked: false, number: "" }) {
+        const row = document.createElement("div");
+        row.className = "grid grid-cols-[auto_1fr_140px] items-center gap-2";
+        row.dataset.option = optionLabel;
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "h-4 w-4 rounded border-slate-300";
+        checkbox.checked = !!value.checked;
+
+        const label = document.createElement("div");
+        label.className = "text-sm";
+        label.textContent = optionLabel;
+
+        const numberInput = document.createElement("input");
+        numberInput.type = "number";
+        numberInput.min = "0";
+        numberInput.step = "1";
+        numberInput.className = "rounded border border-slate-300 px-3 py-2";
+        numberInput.placeholder = "Liczba";
+        numberInput.value = value.number || "";
+        numberInput.disabled = !checkbox.checked;
+        numberInput.classList.toggle("hidden", !checkbox.checked);
+        if (!checkbox.checked) numberInput.value = "";
+
+        checkbox.addEventListener("change", () => {
+          numberInput.disabled = !checkbox.checked;
+          numberInput.classList.toggle("hidden", !checkbox.checked);
+          if (!checkbox.checked) numberInput.value = "";
+          syncHidden();
+        });
+
+        row.appendChild(checkbox);
+        row.appendChild(label);
+        row.appendChild(numberInput);
+        return row;
+      }
+
+      function collectRows() {
+        return Array.from(rowsWrap.children).map((row) => {
+          const option = row.dataset.option || "";
+          const checkbox = row.querySelector('input[type="checkbox"]');
+          const numberInput = row.querySelector('input[type="number"]');
+          return {
+            option: option.trim(),
+            checked: !!checkbox?.checked,
+            number: (numberInput?.value || "").trim(),
+          };
+        });
+      }
+
+      function syncHidden() {
+        const payload = collectRows()
+          .filter((r) => r.checked)
+          .map((r) => ({ option: r.option, number: r.number }));
+        hidden.value = JSON.stringify(payload);
+      }
+
+      const initialRows = parseInitial();
+      const initialByOption = new Map(initialRows.map((r) => [r.option, r]));
+      options.forEach((opt) => {
+        const current = initialByOption.get(opt);
+        rowsWrap.appendChild(
+          buildRow(opt, {
+            checked: !!current,
+            number: current ? current.number : "",
+          })
+        );
+      });
+      syncHidden();
+
+      rowsWrap.addEventListener("input", () => {
+        syncHidden();
+      });
+      rowsWrap.addEventListener("change", () => {
+        syncHidden();
+      });
+    }
+
+    const checkboxNumberBuilder = document.getElementById("checkbox-number-builder");
+    if (checkboxNumberBuilder) {
+      const hidden = document.getElementById("id_answer");
+      initCheckboxNumberBuilder(
+        document.getElementById("checkbox-number-rows"),
+        hidden,
+        checkboxNumberBuilder.dataset.initial || "",
+        parseJsonSafe(checkboxNumberBuilder.dataset.options || "[]", [])
+      );
+    }
+
+    document.querySelectorAll(".complex-checkbox-number-builder").forEach((builderEl) => {
+      const targetId = builderEl.dataset.targetId || "";
+      const hidden = targetId ? document.getElementById(targetId) : null;
+      const rowsWrap = builderEl.querySelector(".checkbox-number-rows");
+      if (!hidden || !rowsWrap) return;
+      initCheckboxNumberBuilder(rowsWrap, hidden, builderEl.dataset.initial || "", parseJsonSafe(builderEl.dataset.options || "[]", []));
+    });
+
+    document.querySelectorAll(".complex-address-list-builder").forEach((builderEl) => {
+      const targetId = builderEl.dataset.targetId || "";
+      const hidden = targetId ? document.getElementById(targetId) : null;
+      const rowsWrap = builderEl.querySelector(".address-rows");
+      const datalistId = rowsWrap ? rowsWrap.dataset.datalistId : "";
+      const datalist = datalistId ? document.getElementById(datalistId) : null;
+      if (!hidden || !rowsWrap) return;
+      initAddressListBuilder(
+        rowsWrap,
+        hidden,
+        datalist,
+        builderEl.dataset.initial || "",
+        parseJsonSafe(builderEl.dataset.prefixes || "[]", []),
+        parseJsonSafe(builderEl.dataset.suggestions || "[]", []),
+        datalistId
+      );
+    });
+
     const consentBlock = document.getElementById("consent-required-block");
     const submitBtn = document.getElementById("survey-submit-btn");
     if (!consentBlock || !submitBtn) return;
+
+    const dependentFields = Array.from(document.querySelectorAll('[data-complex-dependent="1"]'));
+    const complexConditionRadios = Array.from(document.querySelectorAll('input[data-complex-condition-source="1"]'));
+    if (dependentFields.length && complexConditionRadios.length) {
+      const conditionalRows = Array.from(
+        new Set(dependentFields.map((el) => el.closest(".space-y-1")).filter(Boolean))
+      );
+      function setRowEnabled(row, enabled) {
+        row.classList.toggle("hidden", !enabled);
+        row.querySelectorAll("input,select,textarea,button").forEach((el) => {
+          if (el.name === "action") return;
+          el.disabled = !enabled;
+        });
+      }
+      function updateComplexConditional() {
+        const selected = document.querySelector('input[data-complex-condition-source="1"]:checked');
+        const rootAnswer = selected ? selected.value : "";
+        conditionalRows.forEach((row) => {
+          const trigger = row.querySelector('[data-complex-dependent="1"]');
+          const showIf = (trigger?.dataset.complexShowIf || "any").toLowerCase();
+          const shouldShow = showIf === "any" || (rootAnswer && rootAnswer === showIf);
+          setRowEnabled(row, shouldShow);
+        });
+      }
+      complexConditionRadios.forEach((el) => el.addEventListener("change", updateComplexConditional));
+      updateComplexConditional();
+    }
 
     const requiredChecks = Array.from(consentBlock.querySelectorAll('[data-consent-required="true"]'));
     const questionType = consentBlock.dataset.questionType || "";

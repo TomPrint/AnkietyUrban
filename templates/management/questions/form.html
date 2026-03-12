@@ -73,7 +73,12 @@
       [
         { value: "open", label: "Open" },
         { value: "yes_no", label: "Yes / No" },
-        { value: "multi_choice", label: "Multi choice" },
+        { value: "yes_no_next", label: "Yes / No (no condition)" },
+        { value: "multi_choice", label: "Multi-many" },
+        { value: "multi_one", label: "Multi-one" },
+        { value: "open_numeric", label: "Numeric" },
+        { value: "open_with_list", label: "Adress List" },
+        { value: "open_number_list", label: "Checkbox/Number" },
       ].forEach((opt) => {
         const option = document.createElement("option");
         option.value = opt.value;
@@ -93,6 +98,23 @@
       qInput.placeholder = "Enter sub-question text";
       row.appendChild(qInput);
 
+      const showIfLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Show if");
+      row.appendChild(showIfLabel);
+      const showIfSelect = createEl("select", "mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm");
+      showIfSelect.dataset.field = "show_if";
+      [
+        { value: "any", label: "Always" },
+        { value: "yes", label: "Yes" },
+        { value: "no", label: "No" },
+      ].forEach((opt) => {
+        const option = document.createElement("option");
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if ((item.show_if || "any") === opt.value) option.selected = true;
+        showIfSelect.appendChild(option);
+      });
+      row.appendChild(showIfSelect);
+
       const optionsWrap = createEl("div", "complex-options-wrap");
       const oLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Options (one per line)");
       const oText = createEl("textarea", "w-full rounded border border-slate-300 px-3 py-2 text-sm");
@@ -105,10 +127,18 @@
       row.appendChild(optionsWrap);
 
       function toggleOptions() {
-        optionsWrap.style.display = typeSelect.value === "multi_choice" ? "" : "none";
+        optionsWrap.style.display = ["multi_choice", "multi_one", "open_number_list"].includes(typeSelect.value) ? "" : "none";
       }
       typeSelect.addEventListener("change", toggleOptions);
       toggleOptions();
+
+      function toggleShowIf() {
+        const isConditionalSource = typeSelect.value === "yes_no";
+        showIfSelect.disabled = isConditionalSource;
+        if (isConditionalSource) showIfSelect.value = "any";
+      }
+      typeSelect.addEventListener("change", toggleShowIf);
+      toggleShowIf();
 
       return row;
     }
@@ -125,7 +155,8 @@
         return {
           type,
           label,
-          options: type === "multi_choice" ? options : [],
+          show_if: row.querySelector('[data-field="show_if"]').value || "any",
+          options: ["multi_choice", "multi_one", "open_with_list", "open_number_list"].includes(type) ? options : [],
         };
       });
     }
@@ -145,7 +176,7 @@
       if (!type) return;
       if (options) {
         const optionsWrapper = options.closest("div");
-        optionsWrapper.style.display = type.value === "multi_choice" ? "" : "none";
+        optionsWrapper.style.display = ["multi_choice", "multi_one", "open_number_list"].includes(type.value) ? "" : "none";
       }
       if (complexItems && complexBuilder) {
         const show = type.value === "complex";
@@ -214,9 +245,9 @@
                 event.preventDefault();
                 return;
               }
-              if (item.type === "multi_choice" && !item.options.length) {
+              if ((item.type === "multi_choice" || item.type === "multi_one" || item.type === "open_number_list") && !item.options.length) {
                 if (clientError) {
-                  clientError.textContent = `Item ${i + 1}: add at least one multi choice option.`;
+                  clientError.textContent = `Item ${i + 1}: add at least one option.`;
                   clientError.classList.remove("hidden");
                 }
                 event.preventDefault();

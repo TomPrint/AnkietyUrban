@@ -31,8 +31,10 @@
             {% for item in question.complex_items %}
               <li>
                 <span class="font-semibold">{{ item.type }}</span>: {{ item.label }}
-                {% if item.type == 'multi_choice' and item.options %}
+                {% if item.type == 'multi_choice' or item.type == 'multi_one' or item.type == 'open_with_list' or item.type == 'open_number_list' %}
+                  {% if item.options %}
                   ({{ item.options|join:", " }})
+                  {% endif %}
                 {% endif %}
               </li>
             {% endfor %}

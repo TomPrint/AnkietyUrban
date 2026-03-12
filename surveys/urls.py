@@ -29,6 +29,8 @@ from .views import (
     template_copy,
     template_create,
     template_delete,
+    template_demo,
+    template_demo_done,
     template_edit,
     template_list,
     template_node_create,
@@ -69,6 +71,8 @@ urlpatterns = [
     path("management/templates/<int:template_id>/delete/", template_delete, name="management-template-delete"),
     path("management/templates/<int:template_id>/builder/", template_builder, name="management-template-builder"),
     path("management/templates/<int:template_id>/preview/", template_preview, name="management-template-preview"),
+    path("management/templates/<int:template_id>/demo/", template_demo, name="management-template-demo"),
+    path("management/templates/<int:template_id>/demo/done/", template_demo_done, name="management-template-demo-done"),
     path("management/templates/<int:template_id>/builder/data/", template_builder_data, name="management-template-builder-data"),
     path("management/templates/<int:template_id>/builder/nodes/create/", template_node_create, name="management-template-node-create"),
     path(

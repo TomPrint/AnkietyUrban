@@ -1,5 +1,9 @@
+import json
+import json
 import uuid
 import csv
+from decimal import Decimal
+from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -89,13 +93,13 @@ def _start_node(template: SurveyTemplate):
 
 
 def _template_is_live(template: SurveyTemplate) -> bool:
-    return template.survey_sessions.exists()
+    return template.survey_sessions.filter(is_archived=False).exists()
 
 
 def _normalize_live_templates_to_ready():
     SurveyTemplate.objects.filter(
         status=SurveyTemplate.Status.DRAFT,
-        survey_sessions__isnull=False,
+        survey_sessions__is_archived=False,
     ).update(status=SurveyTemplate.Status.READY)
 
 
@@ -365,6 +369,34 @@ def _start_node_or_404(template: SurveyTemplate, *, require_ready: bool = True):
     return start
 
 
+def _template_demo_session_key(template_id: int) -> str:
+    return f"template_demo_state_{template_id}"
+
+
+def _json_safe_value(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, list):
+        return [_json_safe_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _json_safe_value(v) for k, v in value.items()}
+    return value
+
+
+def _apply_demo_answer_initial(form: DynamicQuestionForm, node: TemplateNode, stored_value):
+    if node.question.question_type == Question.QuestionType.COMPLEX and isinstance(stored_value, list):
+        for idx, item in enumerate(stored_value):
+            field_name = f"complex_{idx}"
+            if field_name not in form.fields:
+                continue
+            value = item.get("value")
+            if str(item.get("type", "")).strip().lower() == Question.QuestionType.OPEN_NUMBER_LIST and not isinstance(value, str):
+                value = json.dumps(value or [], ensure_ascii=False)
+            form.initial[field_name] = value
+        return
+    form.initial["answer"] = stored_value
+
+
 def _validate_target_node(template: SurveyTemplate, node_id: str | None, source_node: TemplateNode | None = None):
     if node_id in (None, ""):
         return None
@@ -514,6 +546,11 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
         if value:
             answer.selected_choices.set(value)
         return
+    if q_type == Question.QuestionType.MULTI_ONE:
+        answer.save(update_fields=["updated_at"])
+        if value:
+            answer.selected_choices.set([value])
+        return
     if q_type == Question.QuestionType.COMPLEX:
         answer.complex_answer = value or []
         answer.save(update_fields=["complex_answer", "updated_at"])
@@ -533,6 +570,29 @@ def _answer_value_display(answer: SurveyAnswer) -> str:
     if q_type == Question.QuestionType.MULTI_CHOICE:
         labels = list(answer.selected_choices.values_list("label", flat=True))
         return ", ".join(labels) if labels else "-"
+    if q_type == Question.QuestionType.MULTI_ONE:
+        label = answer.selected_choices.values_list("label", flat=True).first()
+        return label or "-"
+    if q_type == Question.QuestionType.OPEN_NUMBER_LIST:
+        raw = (answer.open_answer or "").strip()
+        if not raw:
+            return "-"
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return raw
+        if not isinstance(payload, list):
+            return raw
+        rendered = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("option", "")).strip()
+            number = str(item.get("number", "")).strip()
+            if not text and not number:
+                continue
+            rendered.append(f"{text}: {number}")
+        return " | ".join(rendered) if rendered else "-"
     if q_type == Question.QuestionType.COMPLEX:
         items = answer.complex_answer or []
         if not items:
@@ -542,7 +602,61 @@ def _answer_value_display(answer: SurveyAnswer) -> str:
             label = item.get("label", "Item")
             value = item.get("value")
             item_type = item.get("type")
-            if isinstance(value, list):
+            if item_type == Question.QuestionType.MULTI_ONE:
+                options = item.get("options", [])
+                selected_labels = []
+                value_iter = value if isinstance(value, list) else [value]
+                for v in value_iter:
+                    try:
+                        index = int(v)
+                    except (TypeError, ValueError):
+                        continue
+                    if 0 <= index < len(options):
+                        selected_labels.append(options[index])
+                value_text = ", ".join(selected_labels) if selected_labels else "-"
+            elif item_type == Question.QuestionType.OPEN_NUMBER_LIST:
+                parsed_rows = []
+                if isinstance(value, str):
+                    try:
+                        parsed = json.loads(value or "[]")
+                    except json.JSONDecodeError:
+                        parsed = []
+                    if isinstance(parsed, list):
+                        parsed_rows = parsed
+                elif isinstance(value, list):
+                    parsed_rows = value
+                row_texts = []
+                for row in parsed_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    row_name = str(row.get("option", "")).strip()
+                    row_number = str(row.get("number", "")).strip()
+                    if not row_name and not row_number:
+                        continue
+                    row_texts.append(f"{row_name}: {row_number}")
+                value_text = " | ".join(row_texts) if row_texts else "-"
+            elif item_type == Question.QuestionType.OPEN_WITH_LIST:
+                parsed_rows = []
+                if isinstance(value, str):
+                    try:
+                        parsed = json.loads(value or "[]")
+                    except json.JSONDecodeError:
+                        parsed = []
+                    if isinstance(parsed, list):
+                        parsed_rows = parsed
+                elif isinstance(value, list):
+                    parsed_rows = value
+                row_texts = []
+                for row in parsed_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    row_prefix = str(row.get("prefix", "")).strip()
+                    row_text = str(row.get("text", "")).strip()
+                    if not row_prefix and not row_text:
+                        continue
+                    row_texts.append(f"{row_prefix} {row_text}".strip())
+                value_text = " | ".join(row_texts) if row_texts else "-"
+            elif isinstance(value, list):
                 if item_type == Question.QuestionType.MULTI_CHOICE:
                     options = item.get("options", [])
                     selected_labels = []
@@ -1116,7 +1230,7 @@ def template_list(request: HttpRequest) -> HttpResponse:
         SurveyTemplate.objects.filter(is_archived=False)
         .prefetch_related("nodes")
         .annotate(
-            live_sessions_count=Count("survey_sessions", distinct=True),
+            live_sessions_count=Count("survey_sessions", filter=Q(survey_sessions__is_archived=False), distinct=True),
             nodes_count=Count("nodes", distinct=True),
         )
     )
@@ -1142,7 +1256,7 @@ def template_list(request: HttpRequest) -> HttpResponse:
 def template_copy(request: HttpRequest) -> HttpResponse:
     templates = (
         SurveyTemplate.objects.filter(is_archived=False)
-        .annotate(live_sessions_count=Count("survey_sessions"))
+        .annotate(live_sessions_count=Count("survey_sessions", filter=Q(survey_sessions__is_archived=False)))
         .order_by("name")
     )
     initial_source = request.GET.get("source", "")
@@ -1285,6 +1399,94 @@ def template_preview(request: HttpRequest, template_id: int) -> HttpResponse:
         "nodes_data": [_serialize_node(template, n) for n in nodes],
     }
     return render(request, "management/templates/preview.html", context)
+
+
+@staff_required
+def template_demo(request: HttpRequest, template_id: int) -> HttpResponse:
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
+    _ensure_forced_start_node(template)
+    start = _start_node_or_404(template, require_ready=True)
+    state_key = _template_demo_session_key(template.id)
+
+    if request.GET.get("restart") == "1":
+        request.session.pop(state_key, None)
+
+    state = request.session.get(state_key, {})
+    current_node_id = state.get("current_node_id") or start.id
+    node = get_object_or_404(
+        template.nodes.select_related("question").prefetch_related("question__choices"),
+        pk=current_node_id,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action", "next")
+        if action == "prev":
+            path = list(state.get("path", []))
+            if path:
+                state["current_node_id"] = path.pop()
+                state["path"] = path
+                request.session[state_key] = state
+                request.session.modified = True
+            return redirect("management-template-demo", template_id=template.id)
+
+        form = DynamicQuestionForm(node=node, data=request.POST)
+        if form.is_valid():
+            value = form.get_answer_payload()
+            answers = dict(state.get("answers", {}))
+            answers[str(node.id)] = _json_safe_value(value)
+            next_node = _resolve_next_node(node, value)
+            if next_node is None:
+                request.session.pop(state_key, None)
+                return redirect("management-template-demo-done", template_id=template.id)
+
+            path = list(state.get("path", []))
+            if not path or path[-1] != node.id:
+                path.append(node.id)
+            state = {
+                "current_node_id": next_node.id,
+                "path": path,
+                "answers": answers,
+            }
+            request.session[state_key] = state
+            request.session.modified = True
+            return redirect("management-template-demo", template_id=template.id)
+    else:
+        form = DynamicQuestionForm(node=node)
+        stored = state.get("answers", {}).get(str(node.id))
+        if stored is not None:
+            _apply_demo_answer_initial(form, node, stored)
+
+    has_previous_node = bool(state.get("path"))
+    demo_customer = SimpleNamespace(company_name=f"DEMO: {template.name}")
+    demo_session = SimpleNamespace(
+        customer=demo_customer,
+        get_status_display=lambda: "Demo",
+    )
+    context = {
+        "session": demo_session,
+        "node": node,
+        "question": node.question,
+        "form": form,
+        "consent_required_on_this_node": False,
+        "consent_error": "",
+        "consent_state": {
+            "consent_personal_data": False,
+            "consent_data_administration": False,
+            "consent_contact_results": False,
+            "consent_marketing": False,
+        },
+        "gdpr_admin_name": "Demo",
+        "gdpr_admin_city": "Demo",
+        "has_previous_node": has_previous_node,
+        "session_customer_name": f"DEMO: {template.name}",
+    }
+    return render(request, "survey/fill_survey.html", context)
+
+
+@staff_required
+def template_demo_done(request: HttpRequest, template_id: int) -> HttpResponse:
+    template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
+    return render(request, "management/templates/demo_done.html", {"template": template})
 
 
 @staff_required
