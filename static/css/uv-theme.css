@@ -351,6 +351,34 @@ main a[class*="rounded"][class*="text-red-"]:hover {
   accent-color: #1a2331;
 }
 
+/* All complex questions: remove pill/button-like label styling. */
+.uv-survey-form.uv-complex-question .uv-answer-shell label {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0 0 0.35rem 0;
+}
+
+.uv-survey-form.uv-complex-question .uv-answer-shell .space-y-1 > div label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0;
+}
+
+.uv-survey-form.uv-complex-question .uv-answer-shell .space-y-1 > div > label {
+  margin-bottom: 0.65rem;
+}
+
+.uv-survey-form.uv-complex-question .uv-answer-shell .space-y-1 ul,
+.uv-survey-form.uv-complex-question .uv-answer-shell .space-y-1 .checkbox-number-rows,
+.uv-survey-form.uv-complex-question .uv-answer-shell .space-y-1 .address-rows {
+  margin-top: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
 /* Forced start complex question: remove pill/button-like label styling. */
 .uv-survey-form.uv-complex-forced .uv-answer-shell label {
   display: block;

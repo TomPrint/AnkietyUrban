@@ -12,7 +12,7 @@
   </section>
 
   <section class="mt-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8">
-    <form method="post" class="space-y-6 uv-survey-form{% if question.is_system and question.question_type == 'complex' %} uv-complex-forced{% endif %}">
+    <form method="post" class="space-y-6 uv-survey-form{% if question.question_type == 'complex' %} uv-complex-question{% endif %}{% if question.is_system and question.question_type == 'complex' %} uv-complex-forced{% endif %}">
       {% csrf_token %}
       <div>
         <h2 class="text-lg font-semibold">{{ question.title }}</h2>
@@ -65,9 +65,9 @@
           {% endif %}
         {% else %}
           {% for field in form %}
-            <div class="space-y-1">
+            <div class="{% if question.question_type == 'complex' %}space-y-3 mb-5 py-1{% else %}space-y-1{% endif %}">
               {% if form.fields|length > 1 %}
-                <label class="block text-sm font-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <label class="block text-sm font-semibold {% if question.question_type == 'complex' %}mb-2{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {% endif %}
               {% if question.question_type == "complex" and "js-checkbox-number-hidden" in field.field.widget.attrs.class %}
                 <input
@@ -247,7 +247,10 @@
           .replace(/\\u000D/gi, "\r")
           .replace(/\\n/g, "\n")
           .replace(/\\r/g, "\r");
-        const parsed = parseJsonSafe(decoded, null);
+        const jsonDecoded = decoded
+          .replace(/\\u0022/gi, '"')
+          .replace(/\\u005C/gi, "\\");
+        const parsed = parseJsonSafe(jsonDecoded, null);
         if (Array.isArray(parsed)) {
           return parsed
             .filter((item) => item && typeof item === "object")
@@ -380,8 +383,11 @@
           .replace(/\\u000D/gi, "\r")
           .replace(/\\n/g, "\n")
           .replace(/\\r/g, "\r");
+        const jsonDecoded = decoded
+          .replace(/\\u0022/gi, '"')
+          .replace(/\\u005C/gi, "\\");
         try {
-          const parsed = JSON.parse(decoded || "[]");
+          const parsed = JSON.parse(jsonDecoded || "[]");
           if (!Array.isArray(parsed)) return [];
           return parsed
             .filter((item) => item && typeof item === "object")
