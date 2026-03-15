@@ -125,7 +125,15 @@ class DynamicQuestionForm(forms.Form):
                 ),
                 **common,
             )
-        return forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), **common)
+        return forms.CharField(
+            widget=forms.Textarea(
+                attrs={
+                    "rows": 5,
+                    "style": "resize: vertical;",
+                }
+            ),
+            **common,
+        )
 
     def clean_answer(self):
         answer = self.cleaned_data.get("answer", "")
@@ -303,7 +311,13 @@ class DynamicQuestionForm(forms.Form):
                     )
                 else:
                     self.fields[field_name] = forms.CharField(
-                        widget=forms.TextInput(attrs=attrs),
+                        widget=forms.Textarea(
+                            attrs={
+                                **attrs,
+                                "rows": 4,
+                                "style": "resize: vertical;",
+                            }
+                        ),
                         required=effective_required,
                         label=item_label,
                     )

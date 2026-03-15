@@ -1147,7 +1147,8 @@ def _detach_question_for_live_templates(question: Question) -> bool:
         required=question.required,
         is_system=False,
         is_finishing=question.is_finishing,
-        is_archived=False,
+        is_archived=True,
+        archived_at=timezone.now(),
     )
     choices = list(question.choices.order_by("order", "id").values_list("label", "order"))
     if choices:

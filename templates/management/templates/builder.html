@@ -380,6 +380,13 @@
       return { x: node.x + 112, y: node.y + 34 };
     }
 
+    function edgeStyle(fromNode, toNode, defaultColor, defaultLabel) {
+      if ((fromNode && fromNode.is_finishing_question) || (toNode && toNode.is_finishing_question)) {
+        return { color: "#fde68a", label: "FINISHING" };
+      }
+      return { color: defaultColor, label: defaultLabel };
+    }
+
     function drawLine(fromNode, toNode, color, label, lineOffset = 0) {
       const a = nodeCenter(fromNode);
       const b = nodeCenter(toNode);
@@ -507,13 +514,17 @@
           const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
           const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
           if (yesTarget) {
-            drawPreviewEdge(node, yesTarget, "#16a34a", "YES", sameTarget ? -6 : 0);
+            const style = edgeStyle(node, yesTarget, "#16a34a", "YES");
+            drawPreviewEdge(node, yesTarget, style.color, style.label, sameTarget ? -6 : 0);
           }
           if (noTarget) {
-            drawPreviewEdge(node, noTarget, "#dc2626", "NO", sameTarget ? 6 : 0);
+            const style = edgeStyle(node, noTarget, "#dc2626", "NO");
+            drawPreviewEdge(node, noTarget, style.color, style.label, sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
-          drawPreviewEdge(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+          const nextTarget = nodes.get(node.next_id);
+          const style = edgeStyle(node, nextTarget, "#0284c7", "NEXT");
+          drawPreviewEdge(node, nextTarget, style.color, style.label);
         }
       }
 
@@ -575,19 +586,25 @@
           const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
           const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
           if (yesTarget) {
-            drawLine(node, yesTarget, "#16a34a", "YES", sameTarget ? -6 : 0);
+            const style = edgeStyle(node, yesTarget, "#16a34a", "YES");
+            drawLine(node, yesTarget, style.color, style.label, sameTarget ? -6 : 0);
           }
           if (noTarget) {
-            drawLine(node, noTarget, "#dc2626", "NO", sameTarget ? 6 : 0);
+            const style = edgeStyle(node, noTarget, "#dc2626", "NO");
+            drawLine(node, noTarget, style.color, style.label, sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
-          drawLine(node, nodes.get(node.next_id), "#0284c7", "NEXT");
+          const nextTarget = nodes.get(node.next_id);
+          const style = edgeStyle(node, nextTarget, "#0284c7", "NEXT");
+          drawLine(node, nextTarget, style.color, style.label);
         }
       }
       if (connectMode && nodes.has(connectMode.fromId)) {
         const from = nodes.get(connectMode.fromId);
-        const color = connectMode.edge === "yes" ? "#16a34a" : connectMode.edge === "no" ? "#dc2626" : "#0284c7";
-        drawPointerLine(from, pointerCanvas.x, pointerCanvas.y, color, `CONNECT ${connectMode.edge.toUpperCase()}`);
+        const defaultColor = connectMode.edge === "yes" ? "#16a34a" : connectMode.edge === "no" ? "#dc2626" : "#0284c7";
+        const defaultLabel = `CONNECT ${connectMode.edge.toUpperCase()}`;
+        const style = from.is_finishing_question ? { color: "#fde68a", label: "CONNECT FINISHING" } : { color: defaultColor, label: defaultLabel };
+        drawPointerLine(from, pointerCanvas.x, pointerCanvas.y, style.color, style.label);
       }
     }
 

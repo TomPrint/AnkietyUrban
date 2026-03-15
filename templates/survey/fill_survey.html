@@ -65,8 +65,11 @@
           {% endif %}
         {% else %}
           {% for field in form %}
-            <div class="{% if question.question_type == 'complex' %}space-y-3 mb-5 py-1{% else %}space-y-1{% endif %}">
-              {% if form.fields|length > 1 %}
+            <div
+              class="{% if question.question_type == 'complex' %}space-y-3 mb-5 py-1{% else %}space-y-1{% endif %}"
+              {% if question.question_type == 'complex' %}data-complex-row="1"{% endif %}
+            >
+              {% if question.question_type == 'complex' or form.fields|length > 1 %}
                 <label class="block text-sm font-semibold {% if question.question_type == 'complex' %}mb-2{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {% endif %}
               {% if question.question_type == "complex" and "js-checkbox-number-hidden" in field.field.widget.attrs.class %}
@@ -524,7 +527,7 @@
     const complexConditionRadios = Array.from(document.querySelectorAll('input[data-complex-condition-source="1"]'));
     if (dependentFields.length && complexConditionRadios.length) {
       const conditionalRows = Array.from(
-        new Set(dependentFields.map((el) => el.closest(".space-y-1")).filter(Boolean))
+        new Set(dependentFields.map((el) => el.closest('[data-complex-row="1"]')).filter(Boolean))
       );
       function setRowEnabled(row, enabled) {
         row.classList.toggle("hidden", !enabled);
