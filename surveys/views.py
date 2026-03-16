@@ -552,7 +552,7 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
             answer.selected_choices.set([value])
         return
     if q_type == Question.QuestionType.COMPLEX:
-        answer.complex_answer = value or []
+        answer.complex_answer = _json_safe_value(value or [])
         answer.save(update_fields=["complex_answer", "updated_at"])
         return
     answer.open_answer = "" if value is None else str(value)

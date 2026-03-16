@@ -185,7 +185,7 @@ class DynamicQuestionForm(forms.Form):
             text = str(item.get("text", "")).strip()
             if not prefix and not text:
                 continue
-            if prefix not in ADDRESS_PREFIX_CHOICES:
+            if prefix and prefix not in ADDRESS_PREFIX_CHOICES:
                 raise forms.ValidationError("Choose a valid address prefix.")
             if not text:
                 raise forms.ValidationError("Address value cannot be empty.")
@@ -440,7 +440,7 @@ class DynamicQuestionForm(forms.Form):
                 text = str(row.get("text", "")).strip()
                 if not prefix and not text:
                     continue
-                if prefix not in ADDRESS_PREFIX_CHOICES:
+                if prefix and prefix not in ADDRESS_PREFIX_CHOICES:
                     self.add_error(field_name, "Choose a valid address prefix.")
                     failed = True
                     break

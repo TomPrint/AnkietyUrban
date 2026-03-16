@@ -153,7 +153,7 @@
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'link' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Link
+                Activity
                 {% if sort == 'link' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>

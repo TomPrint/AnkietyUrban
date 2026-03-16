@@ -277,7 +277,7 @@
         select.className = "rounded border border-slate-300 px-2 py-2";
         const emptyOpt = document.createElement("option");
         emptyOpt.value = "";
-        emptyOpt.textContent = "---";
+        emptyOpt.textContent = "brak prefiksu";
         select.appendChild(emptyOpt);
         prefixes.forEach((p) => {
           const opt = document.createElement("option");
@@ -318,7 +318,7 @@
           return;
         }
         const last = rows[rows.length - 1];
-        const rowFilled = last.text && (last.prefix || !prefixes.length);
+        const rowFilled = !!last.text;
         if (rowFilled) {
           rowsWrap.appendChild(buildRow());
         }
