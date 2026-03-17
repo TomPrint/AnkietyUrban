@@ -13,8 +13,10 @@ from django.db.models import BooleanField, Case, Count, Max, Q, Value, When
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.utils.text import slugify
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
 
@@ -1684,6 +1686,7 @@ def template_save_ready(request: HttpRequest, template_id: int) -> JsonResponse:
     return JsonResponse({"ok": True})
 
 
+@method_decorator(never_cache, name="dispatch")
 class SurveyByTokenView(View):
     template_name = "survey/fill_survey.html"
 
@@ -1899,6 +1902,7 @@ class SurveyByTokenView(View):
         return redirect(reverse("survey-by-token", kwargs={"token": token}))
 
 
+@never_cache
 def survey_saved(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
     if session.is_archived or not session.is_link_active:
@@ -1911,6 +1915,7 @@ def survey_saved(request: HttpRequest, token: str) -> HttpResponse:
     return render(request, "survey/saved.html", {"session": session, "session_customer_name": _session_customer_name(session)})
 
 
+@never_cache
 def survey_thanks(request: HttpRequest, token: str) -> HttpResponse:
     session = get_object_or_404(SurveySession.objects.select_related("customer"), token=token)
     if session.is_archived or not session.is_link_active:

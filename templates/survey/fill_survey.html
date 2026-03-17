@@ -7,12 +7,22 @@
   <section class="rounded-2xl bg-white p-6 shadow-lg sm:p-8">
     <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Ankiety Urban</p>
     <h1 class="mt-2 text-2xl font-bold sm:text-3xl">Ankieta {{ session_customer_name|default:session.customer.company_name }}</h1>
-    <p class="mt-3 text-sm text-slate-500">Please complete all questions to submit the survey.</p>
-    <p class="mt-1 text-sm text-slate-500">Status: {{ session.get_status_display }}</p>
+    <p class="mt-3 text-sm text-slate-500">Proszę uzupełnić wszystkie pytania, aby zapisać ankietę.</p>
+    <p class="mt-1 text-sm text-slate-500">
+      Status:
+      {% if session.status == "open" %}Otwarta{% elif session.status == "closed" %}Zamknięta{% elif session.status == "reopened" %}Otwarta ponownie{% elif session.status == "saved_again" %}Zapisana ponownie{% else %}{{ session.get_status_display }}{% endif %}
+    </p>
   </section>
 
   <section class="mt-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8">
-    <form method="post" class="space-y-6 uv-survey-form{% if question.question_type == 'complex' %} uv-complex-question{% endif %}{% if question.is_system and question.question_type == 'complex' %} uv-complex-forced{% endif %}">
+    <form
+      id="survey-main-form"
+      method="post"
+      data-node-id="{{ node.id }}"
+      data-has-previous="{% if has_previous_node %}1{% else %}0{% endif %}"
+      data-session-token="{{ session.token }}"
+      class="space-y-6 uv-survey-form{% if question.question_type == 'complex' %} uv-complex-question{% endif %}{% if question.is_system and question.question_type == 'complex' %} uv-complex-forced{% endif %}"
+    >
       {% csrf_token %}
       <div>
         <h2 class="text-lg font-semibold">{{ question.title }}</h2>
@@ -30,7 +40,7 @@
               target="_blank"
               rel="noopener noreferrer"
             >
-              Link
+              Zobacz
             </a>
           </div>
         {% endif %}
@@ -199,11 +209,11 @@
       <div class="flex flex-col gap-3 sm:flex-row">
         {% if has_previous_node %}
         <button id="survey-back-btn" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" type="submit" name="action" value="prev">
-          Back
+          Wstecz
         </button>
         {% endif %}
         <button id="survey-submit-btn" class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50" type="submit" name="action" value="next">
-          Continue
+          Dalej
         </button>
       </div>
     </form>
@@ -211,6 +221,60 @@
 </main>
 <script>
   (function () {
+    const surveyForm = document.getElementById("survey-main-form");
+    const currentNodeId = surveyForm ? (surveyForm.dataset.nodeId || "") : "";
+    const hasPreviousNode = surveyForm ? (surveyForm.dataset.hasPrevious === "1") : false;
+    const sessionToken = surveyForm ? (surveyForm.dataset.sessionToken || "") : "";
+
+    if (surveyForm && currentNodeId) {
+      const backBtn = document.getElementById("survey-back-btn");
+      const state = history.state && typeof history.state === "object" ? history.state : {};
+      const hasGuardState =
+        state.uvSurveyBackGuard === true &&
+        String(state.nodeId || "") === currentNodeId &&
+        String(state.token || "") === sessionToken;
+
+      // Two-state guard: Back lands on "base" state first, then we map it to Wstecz.
+      if (!hasGuardState) {
+        history.replaceState(
+          { uvSurveyBackGuard: true, level: "base", nodeId: currentNodeId, token: sessionToken },
+          "",
+          window.location.href
+        );
+        history.pushState(
+          { uvSurveyBackGuard: true, level: "guard", nodeId: currentNodeId, token: sessionToken },
+          "",
+          window.location.href
+        );
+      }
+
+      let backSubmitInProgress = false;
+      window.addEventListener("popstate", function (event) {
+        if (backSubmitInProgress) return;
+        const evState = event.state && typeof event.state === "object" ? event.state : {};
+        const isThisQuestionState =
+          evState.uvSurveyBackGuard === true &&
+          String(evState.nodeId || "") === currentNodeId &&
+          String(evState.token || "") === sessionToken;
+
+        if (!isThisQuestionState) return;
+        if (evState.level !== "base") return;
+
+        if (hasPreviousNode && backBtn) {
+          backSubmitInProgress = true;
+          if (typeof surveyForm.requestSubmit === "function") {
+            surveyForm.requestSubmit(backBtn);
+          } else {
+            backBtn.click();
+          }
+          return;
+        }
+
+        // First question: do not leave survey on browser Back.
+        history.forward();
+      });
+    }
+
     function parseJsonSafe(raw, fallback) {
       if (typeof raw !== "string") return fallback;
       try {
@@ -571,7 +635,7 @@
 
     function updateConsentGate() {
       const needsConsent = terminalPathSelected();
-      submitBtn.textContent = needsConsent ? "Save Survey" : "Continue";
+      submitBtn.textContent = needsConsent ? "Zapisz ankietę" : "Dalej";
       consentBlock.classList.toggle("hidden", !needsConsent);
       if (!needsConsent) {
         submitBtn.disabled = false;

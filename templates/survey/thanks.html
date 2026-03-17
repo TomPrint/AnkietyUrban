@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Completed | Ankiety Urban{% endblock %}
+{% block title %}Dziękujemy | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-2xl px-4 pb-10 pt-3 sm:px-6">
   <section class="rounded-2xl bg-white p-8 text-center shadow-lg">
-    <h1 class="text-2xl font-bold">Thank you</h1>
+    <h1 class="text-2xl font-bold">Dziękujemy</h1>
     <p class="mt-3 text-slate-600">
-      Survey for {{ session_customer_name|default:session.customer.company_name }} is completed.
+      Ankieta dla {{ session_customer_name|default:session.customer.company_name }} została zakończona.
     </p>
     <div class="mt-6 flex flex-col items-center gap-2">
       <button type="button" class="rounded-lg bg-slate-900 px-5 py-2.5 text-base font-semibold text-white" onclick="window.location.href='https://urban-vision.pl';">
-        Back
+        Powrót
       </button>
       <label for="confirm-edit" class="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
         <input id="confirm-edit" type="checkbox" class="h-4 w-4" />
-        <span>I want to edit/correct my information</span>
+        <span>Chcę edytować/poprawić moje dane</span>
       </label>
       <a
         id="edit-link"
@@ -23,7 +23,7 @@
         href="{% url 'survey-by-token' session.token %}?edit=1"
         aria-disabled="true"
       >
-        Edit
+        Edytuj
       </a>
     </div>
   </section>

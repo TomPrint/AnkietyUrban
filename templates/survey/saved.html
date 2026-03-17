@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Saved | Ankiety Urban{% endblock %}
+{% block title %}Zapisano | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-2xl px-4 pb-10 pt-3 sm:px-6">
   <section class="rounded-2xl bg-white p-8 text-center shadow-lg">
-    <h1 class="text-2xl font-bold">Survey saved</h1>
+    <h1 class="text-2xl font-bold">Ankieta zapisana</h1>
     <p class="mt-3 text-slate-600">
-      Ankieta {{ session_customer_name|default:session.customer.company_name }} has been saved. You can reopen this link anytime and continue.
+      Ankieta {{ session_customer_name|default:session.customer.company_name }} została zapisana. Możesz otworzyć ten link ponownie w dowolnym momencie i kontynuować.
     </p>
     <a class="mt-6 inline-block rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" href="{% url 'survey-by-token' session.token %}">
-      Reopen survey
+      Otwórz ankietę ponownie
     </a>
   </section>
 </main>

@@ -298,6 +298,22 @@ main a[class*="rounded"][class*="text-red-"]:hover {
     linear-gradient(155deg, #f8d7dd 0%, #e6ebf4 48%, #cfd9e8 100%);
 }
 
+.uv-admin-bg {
+  background: linear-gradient(155deg, #e5e7eb 0%, #a7b4c9 48%, #1a2331 100%);
+}
+
+.uv-survey-cctv {
+  position: relative;
+  overflow-x: hidden;
+  background:
+    linear-gradient(rgba(2, 5, 17, 0.28), rgba(2, 5, 17, 0.28)),
+    url("../assets/CCTV1.png") center center / cover no-repeat fixed;
+}
+
+.uv-logo-on-dark {
+  filter: brightness(0) invert(1);
+}
+
 .uv-survey-bg > :not(script):not(.uv-cityline) {
   position: relative;
   z-index: 1;
@@ -306,8 +322,7 @@ main a[class*="rounded"][class*="text-red-"]:hover {
 .uv-survey-form .uv-answer-shell {
   border: 1px solid rgba(37, 57, 86, 0.26);
   border-radius: 12px;
-  background:
-    linear-gradient(145deg, rgba(248, 214, 221, 0.5) 0%, rgba(231, 237, 246, 0.72) 52%, rgba(206, 218, 236, 0.56) 100%);
+  background: #dfe8f6;
   box-shadow: 0 10px 22px -18px rgba(26, 35, 49, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.55);
   padding: 0.9rem 0.95rem;
 }
@@ -331,17 +346,17 @@ main a[class*="rounded"][class*="text-red-"]:hover {
 .uv-survey-form .uv-answer-shell input[type="number"]:focus,
 .uv-survey-form .uv-answer-shell select:focus {
   outline: none;
-  border-color: rgba(237, 29, 36, 0.55);
-  box-shadow: 0 0 0 3px rgba(237, 29, 36, 0.14);
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
 .uv-survey-form .uv-answer-shell label {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border: 1px solid rgba(37, 57, 86, 0.16);
+  border: 1px solid rgba(63, 98, 152, 0.34);
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(244, 211, 220, 0.55) 0%, rgba(236, 242, 250, 0.82) 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #f4f6f9 52%, #e8edf3 100%);
   padding: 0.5rem 0.7rem;
   margin: 0.2rem 0.35rem 0.2rem 0;
 }
@@ -397,6 +412,8 @@ main a[class*="rounded"][class*="text-red-"]:hover {
 }
 
 .uv-cityline {
+  /* Tymczasowo ukryte: markup zostaje w szablonie zakomentowany do łatwego przywrócenia. */
+  display: none !important;
   position: fixed;
   left: 0;
   right: 0;

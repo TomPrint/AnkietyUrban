@@ -72,6 +72,19 @@ class DynamicQuestionForm(forms.Form):
             self._build_complex_fields()
         else:
             self.fields["answer"] = self._build_field(self.question)
+        self._apply_polish_error_messages()
+
+    def _apply_polish_error_messages(self):
+        for field in self.fields.values():
+            field.error_messages["required"] = "To pole jest wymagane."
+            if isinstance(field, forms.DecimalField):
+                field.error_messages["invalid"] = "Podaj poprawną liczbę."
+            if isinstance(field, forms.EmailField):
+                field.error_messages["invalid"] = "Podaj poprawny adres e-mail."
+            if isinstance(field, forms.URLField):
+                field.error_messages["invalid"] = "Podaj poprawny adres URL."
+            if isinstance(field, (forms.ChoiceField, forms.MultipleChoiceField)):
+                field.error_messages["invalid_choice"] = "Wybierz poprawną wartość."
 
     def question_id_is_open_with_list(self):
         return self.question.question_type == Question.QuestionType.OPEN_WITH_LIST
@@ -87,7 +100,7 @@ class DynamicQuestionForm(forms.Form):
         }
         if question.question_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
             return forms.ChoiceField(
-                choices=(("yes", "Yes"), ("no", "No")),
+                choices=(("yes", "Tak"), ("no", "Nie")),
                 widget=forms.RadioSelect,
                 **common,
             )
@@ -141,9 +154,9 @@ class DynamicQuestionForm(forms.Form):
             try:
                 payload = json.loads(answer or "[]")
             except json.JSONDecodeError:
-                raise forms.ValidationError("Invalid checkbox-number format.")
+                raise forms.ValidationError("Nieprawidłowy format checkbox/liczba.")
             if not isinstance(payload, list):
-                raise forms.ValidationError("Invalid checkbox-number format.")
+                raise forms.ValidationError("Nieprawidłowy format checkbox/liczba.")
             allowed = {opt.label.strip() for opt in self.question.choices.all() if opt.label.strip()}
             normalized = []
             for item in payload:
@@ -154,29 +167,29 @@ class DynamicQuestionForm(forms.Form):
                 if not option and not raw_number:
                     continue
                 if not option:
-                    raise forms.ValidationError("Option value cannot be empty.")
+                    raise forms.ValidationError("Wartość opcji nie może być pusta.")
                 if option not in allowed:
-                    raise forms.ValidationError("Choose a valid option.")
+                    raise forms.ValidationError("Wybierz poprawną opcję.")
                 if raw_number == "":
-                    raise forms.ValidationError("Numeric value cannot be empty.")
+                    raise forms.ValidationError("Wartość liczbowa nie może być pusta.")
                 try:
                     number = int(raw_number)
                 except ValueError:
-                    raise forms.ValidationError("Numeric value must be an integer.")
+                    raise forms.ValidationError("Wartość liczbowa musi być liczbą całkowitą.")
                 if number < 0:
-                    raise forms.ValidationError("Numeric value cannot be negative.")
+                    raise forms.ValidationError("Wartość liczbowa nie może być ujemna.")
                 normalized.append({"option": option, "number": str(number)})
             if not normalized:
-                raise forms.ValidationError("Select at least one option.")
+                raise forms.ValidationError("Wybierz co najmniej jedną opcję.")
             return json.dumps(normalized, ensure_ascii=False)
         if not self.question_id_is_open_with_list():
             return answer
         try:
             payload = json.loads(answer or "[]")
         except json.JSONDecodeError:
-            raise forms.ValidationError("Invalid address list format.")
+            raise forms.ValidationError("Nieprawidłowy format listy adresów.")
         if not isinstance(payload, list):
-            raise forms.ValidationError("Invalid address list format.")
+            raise forms.ValidationError("Nieprawidłowy format listy adresów.")
         lines = []
         for item in payload:
             if not isinstance(item, dict):
@@ -186,12 +199,12 @@ class DynamicQuestionForm(forms.Form):
             if not prefix and not text:
                 continue
             if prefix and prefix not in ADDRESS_PREFIX_CHOICES:
-                raise forms.ValidationError("Choose a valid address prefix.")
+                raise forms.ValidationError("Wybierz poprawny prefiks adresu.")
             if not text:
-                raise forms.ValidationError("Address value cannot be empty.")
+                raise forms.ValidationError("Adres nie może być pusty.")
             lines.append(f"{prefix} {text}".strip())
         if not lines:
-            raise forms.ValidationError("Add at least one address.")
+            raise forms.ValidationError("Dodaj co najmniej jeden adres.")
         return "\n".join(lines)
 
     def _build_complex_fields(self):
@@ -219,7 +232,7 @@ class DynamicQuestionForm(forms.Form):
                 if item_type == Question.QuestionType.YES_NO and field_name == self.complex_condition_field_name:
                     widget_attrs["data-complex-condition-source"] = "1"
                 self.fields[field_name] = forms.ChoiceField(
-                    choices=(("yes", "Yes"), ("no", "No")),
+                    choices=(("yes", "Tak"), ("no", "Nie")),
                     widget=forms.RadioSelect(attrs=widget_attrs),
                     required=effective_required,
                     label=item_label,
@@ -347,9 +360,9 @@ class DynamicQuestionForm(forms.Form):
                         empty_value = value in (None, "")
                     if empty_value:
                         if show_if in ("yes", "no"):
-                            self.add_error(field_name, f"This field is required when first answer is {show_if.capitalize()}.")
+                            self.add_error(field_name, f"To pole jest wymagane, gdy pierwsza odpowiedź to {show_if.capitalize()}.")
                         else:
-                            self.add_error(field_name, "This field is required.")
+                            self.add_error(field_name, "To pole jest wymagane.")
                 else:
                     # Skip/clear hidden conditional items.
                     item_type = self._complex_item_type_by_field.get(field_name)
@@ -365,15 +378,15 @@ class DynamicQuestionForm(forms.Form):
             is_required = bool(self.fields.get(field_name) and self.fields[field_name].required)
             if raw_value in (None, ""):
                 if is_required:
-                    self.add_error(field_name, "This field is required.")
+                    self.add_error(field_name, "To pole jest wymagane.")
                 continue
             try:
                 payload = json.loads(raw_value if isinstance(raw_value, str) else "[]")
             except json.JSONDecodeError:
-                self.add_error(field_name, "Invalid checkbox-number format.")
+                self.add_error(field_name, "Nieprawidłowy format checkbox/liczba.")
                 continue
             if not isinstance(payload, list):
-                self.add_error(field_name, "Invalid checkbox-number format.")
+                self.add_error(field_name, "Nieprawidłowy format checkbox/liczba.")
                 continue
             allowed_options = {str(o).strip() for o in (self._complex_item_options_by_field.get(field_name) or []) if str(o).strip()}
             normalized = []
@@ -386,32 +399,32 @@ class DynamicQuestionForm(forms.Form):
                 if not option and not raw_number:
                     continue
                 if not option:
-                    self.add_error(field_name, "Option value cannot be empty.")
+                    self.add_error(field_name, "Wartość opcji nie może być pusta.")
                     failed = True
                     break
                 if allowed_options and option not in allowed_options:
-                    self.add_error(field_name, "Choose a valid option.")
+                    self.add_error(field_name, "Wybierz poprawną opcję.")
                     failed = True
                     break
                 if raw_number == "":
-                    self.add_error(field_name, "Numeric value cannot be empty.")
+                    self.add_error(field_name, "Wartość liczbowa nie może być pusta.")
                     failed = True
                     break
                 try:
                     number = int(raw_number)
                 except ValueError:
-                    self.add_error(field_name, "Numeric value must be an integer.")
+                    self.add_error(field_name, "Wartość liczbowa musi być liczbą całkowitą.")
                     failed = True
                     break
                 if number < 0:
-                    self.add_error(field_name, "Numeric value cannot be negative.")
+                    self.add_error(field_name, "Wartość liczbowa nie może być ujemna.")
                     failed = True
                     break
                 normalized.append({"option": option, "number": str(number)})
             if failed:
                 continue
             if is_required and not normalized:
-                self.add_error(field_name, "Add at least one row.")
+                self.add_error(field_name, "Dodaj co najmniej jeden wiersz.")
                 continue
             cleaned[field_name] = json.dumps(normalized, ensure_ascii=False)
         for field_name, item_type in self._complex_item_type_by_field.items():
@@ -421,15 +434,15 @@ class DynamicQuestionForm(forms.Form):
             is_required = bool(self.fields.get(field_name) and self.fields[field_name].required)
             if raw_value in (None, ""):
                 if is_required:
-                    self.add_error(field_name, "This field is required.")
+                    self.add_error(field_name, "To pole jest wymagane.")
                 continue
             try:
                 payload = json.loads(raw_value if isinstance(raw_value, str) else "[]")
             except json.JSONDecodeError:
-                self.add_error(field_name, "Invalid address list format.")
+                self.add_error(field_name, "Nieprawidłowy format listy adresów.")
                 continue
             if not isinstance(payload, list):
-                self.add_error(field_name, "Invalid address list format.")
+                self.add_error(field_name, "Nieprawidłowy format listy adresów.")
                 continue
             normalized = []
             failed = False
@@ -441,18 +454,18 @@ class DynamicQuestionForm(forms.Form):
                 if not prefix and not text:
                     continue
                 if prefix and prefix not in ADDRESS_PREFIX_CHOICES:
-                    self.add_error(field_name, "Choose a valid address prefix.")
+                    self.add_error(field_name, "Wybierz poprawny prefiks adresu.")
                     failed = True
                     break
                 if not text:
-                    self.add_error(field_name, "Address value cannot be empty.")
+                    self.add_error(field_name, "Adres nie może być pusty.")
                     failed = True
                     break
                 normalized.append({"prefix": prefix, "text": text})
             if failed:
                 continue
             if is_required and not normalized:
-                self.add_error(field_name, "Add at least one address.")
+                self.add_error(field_name, "Dodaj co najmniej jeden adres.")
                 continue
             cleaned[field_name] = json.dumps(normalized, ensure_ascii=False)
         return cleaned
