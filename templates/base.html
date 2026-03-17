@@ -13,7 +13,7 @@
   </head>
   <body class="min-h-screen text-slate-900 {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}uv-survey-bg uv-survey-cctv{% elif request.resolver_match.url_name == 'login' or user.is_authenticated and user.is_staff and request.resolver_match.url_name != 'login' %}uv-admin-bg{% else %}bg-slate-100{% endif %}">
     {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}
-    <div class="mx-auto flex w-full max-w-7xl justify-start px-4 pt-2 sm:px-6">
+    <div class="mx-auto flex w-full max-w-7xl justify-start px-2 pt-2 sm:px-4">
       <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-[4.55rem] w-auto uv-logo-on-dark" />
     </div>
     {% elif user.is_authenticated and user.is_staff and request.resolver_match.url_name != 'login' %}
