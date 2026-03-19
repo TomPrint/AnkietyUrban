@@ -302,6 +302,14 @@ main a[class*="rounded"][class*="text-red-"]:hover {
   background: linear-gradient(155deg, #e5e7eb 0%, #a7b4c9 48%, #1a2331 100%);
 }
 
+.uv-portal-bg {
+  background: linear-gradient(155deg, #020816 0%, #061225 42%, #ffffff 100%);
+}
+
+.uv-scraper-bg {
+  background: linear-gradient(155deg, #d5535d 0%, #9f1d2c 44%, #000000 100%);
+}
+
 .uv-survey-cctv {
   position: relative;
   overflow-x: hidden;

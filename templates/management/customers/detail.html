@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Customer Detail | Ankiety Urban{% endblock %}
+{% block title %}Customer Detail | Portal Urban Vision{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Customer Detail</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Portal Customer Detail</p>
       <h1 class="mt-2 text-3xl font-bold">{{ customer.company_name }}</h1>
       <p class="mt-2 text-sm text-slate-600">
         Address: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
@@ -14,8 +14,8 @@
       </p>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-customers' %}">Back to Customers</a>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-customer-edit' customer.id %}">Edit Customer</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customers' %}">Back to Customers</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customer-edit' customer.id %}">Edit Customer</a>
     </div>
   </header>
 

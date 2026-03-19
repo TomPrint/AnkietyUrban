@@ -41,6 +41,15 @@ from .views import (
 )
 
 urlpatterns = [
+    path("portal/users/", user_list, name="portal-users"),
+    path("portal/users/new/", user_create, name="portal-user-create"),
+    path("portal/users/<int:user_id>/edit/", user_edit, name="portal-user-edit"),
+    path("portal/users/<int:user_id>/delete/", user_delete, name="portal-user-delete"),
+    path("portal/customers/", customer_list, name="portal-customers"),
+    path("portal/customers/<int:customer_id>/", customer_detail, name="portal-customer-detail"),
+    path("portal/customers/new/", customer_create, name="portal-customer-create"),
+    path("portal/customers/<int:customer_id>/edit/", customer_edit, name="portal-customer-edit"),
+    path("portal/customers/<int:customer_id>/delete/", customer_delete, name="portal-customer-delete"),
     path("management/users/", user_list, name="management-users"),
     path("management/users/new/", user_create, name="management-user-create"),
     path("management/users/<int:user_id>/edit/", user_edit, name="management-user-edit"),

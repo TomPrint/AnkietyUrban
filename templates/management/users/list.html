@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Users | Ankiety Urban{% endblock %}
+{% block title %}Users | Portal Urban Vision{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Management</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Portal</p>
       <h1 class="mt-2 text-3xl font-bold">Users</h1>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-dashboard' %}">Dashboard</a>
-      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'management-user-create' %}">New User</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-home' %}">Portal</a>
+      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'portal-user-create' %}">New User</a>
     </div>
   </header>
 
@@ -25,7 +25,7 @@
             <th class="py-2">Email</th>
             <th class="py-2">Staff</th>
             <th class="py-2">Active</th>
-            <th class="py-2">Generated Links</th>
+            <th class="py-2">Survey Links</th>
             <th class="py-2">Actions</th>
           </tr>
         </thead>
@@ -40,12 +40,12 @@
             <td class="py-2">{{ u.generated_links_count }}</td>
             <td class="py-2">
               <div class="flex gap-2">
-                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-user-edit' u.id %}">Edit</a>
+                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'portal-user-edit' u.id %}">Edit</a>
                 <button
                   type="button"
                   class="rounded border border-red-300 px-2 py-1 text-red-700"
                   data-delete-user="true"
-                  data-delete-url="{% url 'management-user-delete' u.id %}"
+                  data-delete-url="{% url 'portal-user-delete' u.id %}"
                   data-user-name="{{ u.username }}"
                 >
                   Delete

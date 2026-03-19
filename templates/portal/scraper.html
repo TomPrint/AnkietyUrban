@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Scraper Urban Vision{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
+  <section class="rounded-2xl bg-white p-8 shadow-lg">
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Scraper Urban Vision</p>
+    <h1 class="mt-2 text-3xl font-bold text-slate-900">Scraper Portal</h1>
+    <p class="mt-4 text-sm text-slate-600">
+      This area is reserved for the scraper application. Authentication is already shared with the same user base used by Ankiety Urban Vision.
+    </p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'portal-users' %}">Manage Shared Users</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'portal-home' %}">Back to Portal</a>
+    </div>
+  </section>
+</main>
+{% endblock %}

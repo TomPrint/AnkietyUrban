@@ -830,7 +830,7 @@ def user_create(request: HttpRequest) -> HttpResponse:
     form = UserManageForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
-        return redirect("management-users")
+        return redirect("portal-users")
     return render(request, "management/users/form.html", {"form": form, "title": "Create User"})
 
 
@@ -840,7 +840,7 @@ def user_edit(request: HttpRequest, user_id: int) -> HttpResponse:
     form = UserManageForm(request.POST or None, instance=managed_user)
     if request.method == "POST" and form.is_valid():
         form.save()
-        return redirect("management-users")
+        return redirect("portal-users")
     return render(request, "management/users/form.html", {"form": form, "title": "Edit User"})
 
 
@@ -850,9 +850,9 @@ def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
     managed_user = get_object_or_404(User, pk=user_id)
     if managed_user.id == request.user.id:
         messages.error(request, "You cannot delete your own account.")
-        return redirect("management-users")
+        return redirect("portal-users")
     managed_user.delete()
-    return redirect("management-users")
+    return redirect("portal-users")
 
 
 @staff_required
@@ -897,7 +897,7 @@ def customer_create(request: HttpRequest) -> HttpResponse:
     form = CustomerForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
-        return redirect("management-customers")
+        return redirect("portal-customers")
     return render(request, "management/customers/form.html", {"form": form, "title": "Create Customer"})
 
 
@@ -907,7 +907,7 @@ def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
     form = CustomerForm(request.POST or None, instance=customer)
     if request.method == "POST" and form.is_valid():
         form.save()
-        return redirect("management-customers")
+        return redirect("portal-customers")
     return render(request, "management/customers/form.html", {"form": form, "title": "Edit Customer"})
 
 
@@ -916,7 +916,7 @@ def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
 def customer_delete(request: HttpRequest, customer_id: int) -> HttpResponse:
     customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
     customer.archive()
-    return redirect("management-customers")
+    return redirect("portal-customers")
 
 
 @staff_required

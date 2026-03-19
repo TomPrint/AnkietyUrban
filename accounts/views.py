@@ -2,8 +2,15 @@ from django import forms
 from django.contrib.auth import logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+
+from surveys.models import Customer
+
+
+staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
 
 
 class StaffAuthenticationForm(AuthenticationForm):
@@ -28,10 +35,28 @@ class StaffLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
-        return self.get_redirect_url() or "/management/"
+        return self.get_redirect_url() or "/portal/"
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and not request.user.is_staff:
             logout(request)
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+
+
+@staff_required
+def portal_home(request):
+    context = {
+        "total_users": User.objects.count(),
+        "active_users": User.objects.filter(is_active=True).count(),
+        "staff_users": User.objects.filter(is_staff=True).count(),
+        "total_customers": Customer.objects.filter(is_archived=False).count(),
+        "customers_with_email": Customer.objects.filter(is_archived=False).exclude(email="").count(),
+        "customers_with_phone": Customer.objects.filter(is_archived=False).exclude(telephone="").count(),
+    }
+    return render(request, "portal/home.html", context)
+
+
+@staff_required
+def portal_scraper(request):
+    return render(request, "portal/scraper.html")
