@@ -1,30 +1,9 @@
 import uuid
 
+from crm.models import Customer
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-
-
-class Customer(models.Model):
-    company_name = models.CharField(max_length=255)
-    address = models.CharField(max_length=500, blank=True)
-    contact_person = models.CharField(max_length=255, blank=True)
-    email = models.EmailField(blank=True)
-    telephone = models.CharField(max_length=50, blank=True)
-    is_archived = models.BooleanField(default=False, db_index=True)
-    archived_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["company_name"]
-
-    def __str__(self):
-        return self.company_name
-
-    def archive(self):
-        self.is_archived = True
-        self.archived_at = timezone.now()
-        self.save(update_fields=["is_archived", "archived_at"])
 
 
 class Question(models.Model):
@@ -164,7 +143,7 @@ class SurveySession(models.Model):
         REOPENED = "reopened", "Reopened"
         SAVED_AGAIN = "saved_again", "Saved Again"
 
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="survey_sessions")
+    customer = models.ForeignKey("crm.Customer", on_delete=models.CASCADE, related_name="survey_sessions")
     template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, related_name="survey_sessions")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

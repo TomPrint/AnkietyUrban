@@ -4,7 +4,9 @@ from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from django.utils.html import format_html, format_html_join
 
-from .models import Customer, Question, QuestionChoice, SurveyAnswer, SurveySession, SurveyTemplate, TemplateNode
+from crm.models import Customer
+
+from .models import Question, QuestionChoice, SurveyAnswer, SurveySession, SurveyTemplate, TemplateNode
 
 ADDRESS_PREFIX_CHOICES = [
     "ul.",
@@ -715,28 +717,6 @@ class SurveyTemplateForm(forms.ModelForm):
         if dupe_qs.exists():
             raise forms.ValidationError("Template with this name already exists.")
         return name
-
-
-class CustomerForm(forms.ModelForm):
-    class Meta:
-        model = Customer
-        fields = ["company_name", "address", "contact_person", "email", "telephone"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
-
-    def clean_company_name(self):
-        company_name = (self.cleaned_data.get("company_name") or "").strip()
-        if not company_name:
-            return company_name
-        dupe_qs = Customer.objects.filter(is_archived=False, company_name__iexact=company_name)
-        if self.instance and self.instance.pk:
-            dupe_qs = dupe_qs.exclude(pk=self.instance.pk)
-        if dupe_qs.exists():
-            raise forms.ValidationError("Customer with this name already exists.")
-        return company_name
 
 
 class SurveyAssignmentForm(forms.ModelForm):

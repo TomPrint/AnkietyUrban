@@ -11,25 +11,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{% static 'css/uv-theme.css' %}" />
   </head>
-  <body class="min-h-screen text-slate-900 {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}uv-survey-bg uv-survey-cctv{% elif request.resolver_match.url_name == 'portal-scraper' %}uv-scraper-bg{% elif request.resolver_match.url_name == 'portal-home' or request.resolver_match.url_name == 'portal-users' or request.resolver_match.url_name == 'portal-user-create' or request.resolver_match.url_name == 'portal-user-edit' or request.resolver_match.url_name == 'portal-customers' or request.resolver_match.url_name == 'portal-customer-create' or request.resolver_match.url_name == 'portal-customer-edit' or request.resolver_match.url_name == 'portal-customer-detail' %}uv-portal-bg{% elif request.resolver_match.url_name == 'login' or user.is_authenticated and user.is_staff and request.resolver_match.url_name != 'login' %}uv-admin-bg{% else %}bg-slate-100{% endif %}">
-    {% if request.resolver_match.url_name == 'survey-by-token' or request.resolver_match.url_name == 'survey-thanks' or request.resolver_match.url_name == 'survey-saved' %}
+  <body class="min-h-screen text-slate-900 {% if is_public_survey %}uv-survey-bg uv-survey-cctv{% elif is_portal_scraper %}uv-scraper-bg{% elif is_portal_section %}uv-portal-bg{% elif nav_url_name == 'login' or is_staff_nav_visible %}uv-admin-bg{% else %}bg-slate-100{% endif %}">
+    {% if is_public_survey %}
     <div class="mx-auto flex w-full max-w-7xl justify-start px-2 pt-2 sm:px-4">
       <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-[4.55rem] w-auto uv-logo-on-dark" />
     </div>
-    {% elif user.is_authenticated and user.is_staff and request.resolver_match.url_name != 'login' %}
+    {% elif is_staff_nav_visible %}
     <nav class="uv-nav border-b">
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <a href="{% if user.is_authenticated %}{% url 'portal-home' %}{% else %}{% url 'login' %}{% endif %}" class="flex flex-col items-start">
           <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-20 w-auto" />
-          <span class="uv-brand mt-1 text-xs">
-            {% if request.resolver_match.url_name == 'portal-scraper' %}
-              Scraper
-            {% elif request.resolver_match.url_name == 'portal-home' or request.resolver_match.url_name == 'portal-users' or request.resolver_match.url_name == 'portal-user-create' or request.resolver_match.url_name == 'portal-user-edit' or request.resolver_match.url_name == 'portal-customers' or request.resolver_match.url_name == 'portal-customer-create' or request.resolver_match.url_name == 'portal-customer-edit' or request.resolver_match.url_name == 'portal-customer-detail' %}
-              Portal
-            {% else %}
-              Ankiety
-            {% endif %}
-          </span>
+          <span class="uv-brand mt-1 text-xs">{{ portal_brand_label }}</span>
         </a>
         {% if user.is_authenticated %}
         <button id="mobile-menu-toggle" type="button" class="uv-nav-link lg:hidden" aria-expanded="false" aria-controls="mobile-menu">
@@ -37,7 +29,7 @@
         </button>
         <div class="hidden items-center gap-2 sm:gap-3 lg:flex">
           <a class="uv-nav-link" href="{% url 'portal-home' %}">Portal</a>
-          {% if request.resolver_match.url_name == 'portal-home' or request.resolver_match.url_name == 'portal-scraper' or request.resolver_match.url_name == 'portal-users' or request.resolver_match.url_name == 'portal-user-create' or request.resolver_match.url_name == 'portal-user-edit' or request.resolver_match.url_name == 'portal-customers' or request.resolver_match.url_name == 'portal-customer-create' or request.resolver_match.url_name == 'portal-customer-edit' or request.resolver_match.url_name == 'portal-customer-detail' %}
+          {% if is_portal_section %}
           <a class="uv-nav-link" href="{% url 'portal-users' %}">Users</a>
           <a class="uv-nav-link" href="{% url 'portal-customers' %}">Customers</a>
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Ankiety</a>
@@ -62,7 +54,7 @@
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div class="grid gap-2">
             <a class="uv-nav-link w-full" href="{% url 'portal-home' %}">Portal</a>
-            {% if request.resolver_match.url_name == 'portal-home' or request.resolver_match.url_name == 'portal-scraper' or request.resolver_match.url_name == 'portal-users' or request.resolver_match.url_name == 'portal-user-create' or request.resolver_match.url_name == 'portal-user-edit' or request.resolver_match.url_name == 'portal-customers' or request.resolver_match.url_name == 'portal-customer-create' or request.resolver_match.url_name == 'portal-customer-edit' or request.resolver_match.url_name == 'portal-customer-detail' %}
+            {% if is_portal_section %}
             <a class="uv-nav-link w-full" href="{% url 'portal-users' %}">Users</a>
             <a class="uv-nav-link w-full" href="{% url 'portal-customers' %}">Customers</a>
             <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Ankiety</a>
@@ -88,7 +80,7 @@
     </div>
     {% endif %}
     {% block content %}{% endblock %}
-    {% if user.is_authenticated and user.is_staff and request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'survey-by-token' and request.resolver_match.url_name != 'survey-thanks' and request.resolver_match.url_name != 'survey-saved' %}
+    {% if is_staff_nav_visible %}
     <script>
       (function () {
         const messagesBox = document.getElementById("global-messages");

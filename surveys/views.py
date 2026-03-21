@@ -1,5 +1,4 @@
 import json
-import json
 import uuid
 import csv
 from decimal import Decimal
@@ -20,9 +19,10 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
 
-from .forms import CustomerForm, DynamicQuestionForm, QuestionManageForm, SurveyAssignmentForm, SurveyTemplateForm, UserManageForm
+from crm.models import Customer
+
+from .forms import DynamicQuestionForm, QuestionManageForm, SurveyAssignmentForm, SurveyTemplateForm, UserManageForm
 from .models import (
-    Customer,
     Question,
     SurveyAnswer,
     SurveySession,
@@ -853,70 +853,6 @@ def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
         return redirect("portal-users")
     managed_user.delete()
     return redirect("portal-users")
-
-
-@staff_required
-def customer_list(request: HttpRequest) -> HttpResponse:
-    customers = Customer.objects.filter(is_archived=False).annotate(
-        survays_count=Count(
-            "survey_sessions",
-            filter=Q(survey_sessions__is_archived=False),
-        )
-    )
-    return render(request, "management/customers/list.html", {"customers": customers})
-
-
-@staff_required
-def customer_detail(request: HttpRequest, customer_id: int) -> HttpResponse:
-    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
-    sessions = (
-        SurveySession.objects.select_related("template")
-        .filter(customer=customer, is_archived=False)
-        .order_by("-updated_at")
-    )
-
-    session_rows = []
-    for session in sessions:
-        session_rows.append(
-            {
-                "session": session,
-                "score_percent": _session_branch_completion_percent(session),
-                "saved_versions_count": session.snapshots.count(),
-            }
-        )
-
-    context = {
-        "customer": customer,
-        "session_rows": session_rows,
-    }
-    return render(request, "management/customers/detail.html", context)
-
-
-@staff_required
-def customer_create(request: HttpRequest) -> HttpResponse:
-    form = CustomerForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        return redirect("portal-customers")
-    return render(request, "management/customers/form.html", {"form": form, "title": "Create Customer"})
-
-
-@staff_required
-def customer_edit(request: HttpRequest, customer_id: int) -> HttpResponse:
-    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
-    form = CustomerForm(request.POST or None, instance=customer)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        return redirect("portal-customers")
-    return render(request, "management/customers/form.html", {"form": form, "title": "Edit Customer"})
-
-
-@staff_required
-@require_POST
-def customer_delete(request: HttpRequest, customer_id: int) -> HttpResponse:
-    customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
-    customer.archive()
-    return redirect("portal-customers")
 
 
 @staff_required

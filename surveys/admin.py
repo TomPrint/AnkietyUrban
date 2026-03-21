@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import (
     ArchivedSurveySession,
-    Customer,
     Question,
     QuestionChoice,
     SurveyAnswer,
@@ -36,12 +35,6 @@ class TemplateNodeAdmin(admin.ModelAdmin):
     list_display = ("template", "question", "next_node", "yes_node", "no_node", "ends_survey", "end_on_yes", "end_on_no")
     list_filter = ("template", "question__question_type", "ends_survey", "end_on_yes", "end_on_no")
     search_fields = ("template__name", "question__title", "title_override")
-
-
-@admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("company_name", "contact_person", "email", "created_at")
-    search_fields = ("company_name", "contact_person", "email")
 
 
 @admin.register(SurveySession)

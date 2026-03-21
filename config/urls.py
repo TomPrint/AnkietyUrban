@@ -26,6 +26,8 @@ admin.site.has_permission = lambda request: bool(
 
 urlpatterns = [
     path("", include("accounts.urls")),
+    path("", include("crm.urls")),
+    path("", include("portal.urls")),
     path("", include("surveys.urls")),
     path("admin/", admin.site.urls),
 ]
