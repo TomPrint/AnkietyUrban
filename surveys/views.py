@@ -1,12 +1,16 @@
-import json
-import uuid
 import csv
+import html
+import json
+import logging
+import uuid
 from decimal import Decimal
 from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.db.models import BooleanField, Case, Count, Max, Q, Value, When
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
@@ -31,6 +35,8 @@ from .models import (
     SurveyTemplate,
     TemplateNode,
 )
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_START_QUESTION_TITLE = "Dane podmiotu i osoby kontaktowej"
 SYSTEM_START_QUESTION_HELP = "Uzupelnij wszystkie pola kontaktowe przed rozpoczeciem ankiety."
@@ -680,7 +686,7 @@ def _answer_value_display(answer: SurveyAnswer) -> str:
     return value if value else "-"
 
 
-def _capture_submission_snapshot(session: SurveySession):
+def _capture_submission_snapshot(session: SurveySession) -> SurveySubmissionSnapshot:
     max_version = session.snapshots.aggregate(m=Max("version_number")).get("m") or 0
     answers_qs = (
         session.answers.select_related("question", "node")
@@ -699,12 +705,254 @@ def _capture_submission_snapshot(session: SurveySession):
             }
         )
 
-    SurveySubmissionSnapshot.objects.create(
+    return SurveySubmissionSnapshot.objects.create(
         session=session,
         version_number=max_version + 1,
         status=session.status,
         answers=serialized_answers,
     )
+
+
+def _survey_notification_status_label(session: SurveySession) -> str:
+    if session.status == SurveySession.Status.SAVED_AGAIN:
+        return "Saved again"
+    if session.status == SurveySession.Status.CLOSED:
+        return "Saved"
+    return session.get_status_display()
+
+
+def _survey_notification_origin_label(session: SurveySession) -> str:
+    return "Internal" if session.is_internal else "External"
+
+
+def _format_notification_answer_text(question_type: str, raw_value: str) -> str:
+    value = (raw_value or "").strip()
+    if not value:
+        return "-"
+    if question_type in (
+        Question.QuestionType.COMPLEX,
+        Question.QuestionType.OPEN_NUMBER_LIST,
+        Question.QuestionType.OPEN_WITH_LIST,
+    ):
+        parts = [part.strip() for part in value.split(" | ") if part.strip()]
+        return "\n".join(parts) if parts else value
+    return value
+
+
+def _format_notification_answer_html(question_type: str, raw_value: str) -> str:
+    value = (raw_value or "").strip()
+    if not value:
+        return '<div style="font-size:15px; line-height:22px; color:#334155;">-</div>'
+    if question_type in (
+        Question.QuestionType.COMPLEX,
+        Question.QuestionType.OPEN_NUMBER_LIST,
+        Question.QuestionType.OPEN_WITH_LIST,
+    ):
+        parts = [part.strip() for part in value.split(" | ") if part.strip()]
+        if parts:
+            rendered_parts = []
+            for part in parts:
+                label, separator, content = part.partition(":")
+                if separator:
+                    rendered_parts.append(
+                        f'<div style="padding:8px 0; border-bottom:1px dashed #dbe3ef;">'
+                        f'<span style="display:block; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">{html.escape(label.strip())}</span>'
+                        f'<span style="display:block; font-size:15px; line-height:22px; color:#334155; margin-top:2px;">{html.escape(content.strip() or "-")}</span>'
+                        f"</div>"
+                    )
+                else:
+                    rendered_parts.append(
+                        f'<div style="padding:8px 0; border-bottom:1px dashed #dbe3ef; font-size:15px; line-height:22px; color:#334155;">{html.escape(part)}</div>'
+                    )
+            return "".join(rendered_parts)
+    return f'<div style="font-size:15px; line-height:22px; color:#334155;">{html.escape(value)}</div>'
+
+
+def _build_submission_notification_email(
+    session: SurveySession, snapshot: SurveySubmissionSnapshot
+) -> tuple[str, str, str]:
+    customer_name = _session_customer_name(session) or "-"
+    template_name = _session_template_name(session) or "-"
+    saved_at = timezone.localtime(snapshot.saved_at).strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    lines = [
+        "ZAPISANO NOWA ANKIETE",
+        "",
+        f"Customer: {customer_name}",
+        f"Template: {template_name}",
+        f"Survey type: {_survey_notification_origin_label(session)}",
+        f"Status: {_survey_notification_status_label(session)}",
+        f"Saved at: {saved_at}",
+        "",
+        "Answers:",
+    ]
+    html_answers = []
+
+    for index, item in enumerate(snapshot.answers, start=1):
+        question_title = str(item.get("question_title", "")).strip() or f"Question {index}"
+        question_type = str(item.get("question_type", "")).strip()
+        answer_value = str(item.get("value", "")).strip() or "-"
+        formatted_text_value = _format_notification_answer_text(question_type, answer_value)
+        formatted_html_value = _format_notification_answer_html(question_type, answer_value)
+        lines.append(f"{index}. {question_title}")
+        for line in formatted_text_value.splitlines():
+            lines.append(f"   {line}")
+        html_answers.append(
+            f"""
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:12px; background:#ffffff;">
+              <tr>
+                <td style="padding:12px 14px 6px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                  Question {index}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 14px 10px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">
+                  {html.escape(question_title)}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 14px 6px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b; border-top:1px solid #e5e7eb;">
+                  Answer
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 14px 14px 14px; font-size:15px; line-height:22px; color:#334155;">
+                  {formatted_html_value}
+                </td>
+              </tr>
+            </table>
+            """
+        )
+
+    subject = f"Urban Vision survey saved - {customer_name}"
+    html_body = f"""
+    <html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0; padding:0; background:#f8fafc; font-family:Arial, Helvetica, sans-serif; color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#f8fafc;">
+          <tr>
+            <td align="center" style="padding:16px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:860px; background:#ffffff; border:1px solid #dbe3ef; border-radius:16px; overflow:hidden;">
+                <tr>
+                  <td style="padding:20px 20px; background:#071224; color:#ffffff;">
+                    <div style="font-size:24px; line-height:30px; font-weight:700; letter-spacing:0.04em;">ZAPISANO NOWĄ ANKIETĘ</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; margin-bottom:24px;">
+                      <tr>
+                        <td style="padding:0 0 12px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
+                            <tr>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Customer</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(customer_name)}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 0 12px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
+                            <tr>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Template</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(template_name)}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 0 12px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
+                            <tr>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Survey type</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(_survey_notification_origin_label(session))}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 0 12px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
+                            <tr>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Status</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(_survey_notification_status_label(session))}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
+                            <tr>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Saved at</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(saved_at)}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="font-size:18px; line-height:24px; font-weight:700; margin:0 0 12px 0;">Answers</div>
+                    {''.join(html_answers)}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+    """
+    return subject, "\n".join(lines), html_body
+
+
+def _send_submission_notification(session_id: int, snapshot_id: int) -> None:
+    recipient_emails = list(getattr(settings, "SURVEY_NOTIFICATION_TO_EMAILS", []))
+    if not recipient_emails:
+        return
+
+    session = (
+        SurveySession.objects.select_related("customer", "template")
+        .prefetch_related("snapshots")
+        .filter(pk=session_id)
+        .first()
+    )
+    snapshot = SurveySubmissionSnapshot.objects.filter(pk=snapshot_id, session_id=session_id).first()
+    if session is None or snapshot is None:
+        logger.warning(
+            "Skipping survey notification because session or snapshot is missing.",
+            extra={"session_id": session_id, "snapshot_id": snapshot_id},
+        )
+        return
+
+    subject, body, html_body = _build_submission_notification_email(session, snapshot)
+    try:
+        message = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=settings.SURVEY_NOTIFICATION_FROM_EMAIL,
+            to=recipient_emails,
+        )
+        message.attach_alternative(html_body, "text/html")
+        message.send(fail_silently=False)
+    except Exception:
+        logger.exception(
+            "Failed to send survey submission notification.",
+            extra={"session_id": session_id, "snapshot_id": snapshot_id},
+        )
 
 
 def _session_branch_completion_percent(session: SurveySession) -> int:
@@ -1792,6 +2040,7 @@ class SurveyByTokenView(View):
             session.consent_contact_results = consent_state["consent_contact_results"]
             session.consent_marketing = consent_state["consent_marketing"]
             session.consent_submitted_at = timezone.now()
+            snapshot = None
             if session.first_saved_at is not None:
                 session.mark_saved_again()
                 session.current_node = None
@@ -1810,7 +2059,7 @@ class SurveyByTokenView(View):
                         "updated_at",
                     ]
                 )
-                _capture_submission_snapshot(session)
+                snapshot = _capture_submission_snapshot(session)
             else:
                 session.mark_closed()
                 if session.first_saved_at is None:
@@ -1829,7 +2078,13 @@ class SurveyByTokenView(View):
                         "updated_at",
                     ]
                 )
-                _capture_submission_snapshot(session)
+                snapshot = _capture_submission_snapshot(session)
+            if snapshot is not None:
+                transaction.on_commit(
+                    lambda session_id=session.id, snapshot_id=snapshot.id: _send_submission_notification(
+                        session_id, snapshot_id
+                    )
+                )
             _log_session_event(session, SurveySessionEvent.EventType.SURVEY_SUBMITTED, node=node, request=request)
             return redirect("survey-thanks", token=token)
 
