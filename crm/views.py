@@ -1,4 +1,4 @@
-from django.contrib.auth.decorators import user_passes_test
+﻿from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -56,7 +56,7 @@ def customer_create(request):
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("portal-customers")
-    return render(request, "management/customers/form.html", {"form": form, "title": "Create Customer"})
+    return render(request, "management/customers/form.html", {"form": form, "title": "Dodaj klienta"})
 
 
 @staff_required
@@ -66,7 +66,7 @@ def customer_edit(request, customer_id: int):
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("portal-customers")
-    return render(request, "management/customers/form.html", {"form": form, "title": "Edit Customer"})
+    return render(request, "management/customers/form.html", {"form": form, "title": "Edytuj klienta"})
 
 
 @staff_required
@@ -75,6 +75,8 @@ def customer_delete(request, customer_id: int):
     customer = get_object_or_404(Customer, pk=customer_id, is_archived=False)
     customer.archive()
     return redirect("portal-customers")
+
+
 
 
 

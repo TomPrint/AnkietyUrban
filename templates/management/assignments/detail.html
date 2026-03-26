@@ -1,123 +1,129 @@
 {% extends "base.html" %}
 
-{% block title %}Survey Detail | Ankiety Urban{% endblock %}
+{% block title %}Szczegóły ankiety | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Survey Detail</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczegóły ankiety</p>
       <h1 class="mt-2 text-3xl font-bold">{{ session.customer.company_name }}</h1>
       <p class="mt-2 text-sm text-slate-600">
-        Template: <span class="font-semibold">{{ session.template.name }}</span>
+        Szablon: <span class="font-semibold">{{ session.template.name }}</span>
         | Status: <span class="font-semibold">{{ session.get_status_display }}</span>
       </p>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-assignments' %}">Back to Survey Portal</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-assignments' %}">Powrót do portalu ankiet</a>
       <button
         type="button"
         class="rounded-lg border border-slate-300 px-4 py-2 font-semibold"
         data-open-survey-modal="true"
       >
-        Open Survey Link
+        Otwórz link do ankiety
       </button>
     </div>
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Survey Activity Analytics</h2>
+    <h2 class="text-xl font-semibold">Analityka aktywności ankiety</h2>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Link Opened</p>
+        <p class="text-sm text-slate-500">Link otwarty</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if link_opened %}Yes{% else %}No{% endif %}
+          {% if link_opened %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">First Open</p>
+        <p class="text-sm text-slate-500">Pierwsze otwarcie</p>
         <p class="mt-1 text-lg font-semibold">{{ session.first_opened_at|default:"-" }}</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Active Time Spent</p>
+        <p class="text-sm text-slate-500">Czas aktywności</p>
         <p class="mt-1 text-lg font-semibold">{{ active_time_display }}</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Reached</p>
+        <p class="text-sm text-slate-500">Osiągnięto</p>
         <p class="mt-1 text-lg font-semibold">{{ completion_percent }}%</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Reopen Count</p>
+        <p class="text-sm text-slate-500">Liczba ponownych otwarć</p>
         <p class="mt-1 text-lg font-semibold">{{ session.reopened_count }}</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Last Reopen Time</p>
+        <p class="text-sm text-slate-500">Czas ostatniego ponownego otwarcia</p>
         <p class="mt-1 text-lg font-semibold">{{ session.last_reopened_at|default:"-" }}</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Drop-off Time (if not saved)</p>
+        <p class="text-sm text-slate-500">Moment przerwania (jeśli nie zapisano)</p>
         <p class="mt-1 text-lg font-semibold">{{ drop_off_time|default:"-" }}</p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 lg:col-span-3">
-        <p class="text-sm text-slate-500">Drop-off Question (if not saved)</p>
+        <p class="text-sm text-slate-500">Pytanie, na którym przerwano (jeśli nie zapisano)</p>
         <p class="mt-1 text-lg font-semibold">{{ drop_off_question }}</p>
       </article>
     </div>
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Consents</h2>
+    <h2 class="text-xl font-semibold">Zgody</h2>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Personal Data Processing</p>
+        <p class="text-sm text-slate-500">Przetwarzanie danych osobowych</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_personal_data %}Yes{% else %}No{% endif %}
+          {% if session.consent_personal_data %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Data Administration Info</p>
+        <p class="text-sm text-slate-500">Informacja o administratorze danych</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_data_administration %}Yes{% else %}No{% endif %}
+          {% if session.consent_data_administration %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Contact About Results</p>
+        <p class="text-sm text-slate-500">Kontakt w sprawie wyników</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_contact_results %}Yes{% else %}No{% endif %}
+          {% if session.consent_contact_results %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Marketing (Optional)</p>
+        <p class="text-sm text-slate-500">Marketing (opcjonalnie)</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_marketing %}Yes{% else %}No{% endif %}
+          {% if session.consent_marketing %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 lg:col-span-2">
-        <p class="text-sm text-slate-500">Consent Submitted At</p>
+        <p class="text-sm text-slate-500">Data udzielenia zgód</p>
         <p class="mt-1 text-lg font-semibold">{{ session.consent_submitted_at|default:"-" }}</p>
       </article>
     </div>
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Saved Versions</h2>
-    <p class="mt-2 text-sm text-slate-500">Newest saved survey answers are shown first.</p>
+    <h2 class="text-xl font-semibold">Zapisane wersje</h2>
+    <p class="mt-2 text-sm text-slate-500">Najnowsze zapisane odpowiedzi są pokazane jako pierwsze.</p>
 
     <div class="mt-6 space-y-4">
       {% for snap in snapshots %}
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-lg font-semibold">Version {{ snap.version_number }}</h3>
+          <h3 class="text-lg font-semibold">Wersja {{ snap.version_number }}</h3>
           <div class="flex flex-wrap items-center gap-3">
             <p class="text-sm text-slate-600">
-              Saved: <span class="font-semibold">{{ snap.saved_at }}</span>
+              Zapisano: <span class="font-semibold">{{ snap.saved_at }}</span>
               | Status: <span class="font-semibold">{{ snap.status|default:"-" }}</span>
             </p>
             <a
               class="rounded border border-slate-300 px-3 py-1 text-xs font-semibold"
               href="{% url 'management-assignment-snapshot-csv' session.id snap.id %}"
             >
-              Download CSV
+              Pobierz CSV
+            </a>
+            <a
+              class="rounded border border-slate-300 px-3 py-1 text-xs font-semibold"
+              href="{% url 'management-assignment-snapshot-docx' session.id snap.id %}"
+            >
+              Pobierz Word
             </a>
           </div>
         </div>
@@ -125,9 +131,8 @@
           <table class="min-w-full text-left text-sm">
             <thead class="text-slate-500">
               <tr>
-                <th class="py-2">Node #</th>
-                <th class="py-2">Question</th>
-                <th class="py-2">Answer</th>
+                <th class="py-2">Węzeł #</th>
+                <th class="py-2">Odpowiedź</th>
               </tr>
             </thead>
             <tbody>
@@ -138,14 +143,14 @@
                 <td class="py-2">{{ item.value }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="3" class="py-3 text-slate-500">No answers in this save.</td></tr>
+              <tr><td colspan="3" class="py-3 text-slate-500">Brak odpowiedzi w tym zapisie.</td></tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
       </article>
       {% empty %}
-      <p class="text-sm text-slate-500">No saved versions yet for this survey.</p>
+      <p class="text-sm text-slate-500">Brak zapisanych wersji dla tej ankiety.</p>
       {% endfor %}
     </div>
   </section>
@@ -157,19 +162,19 @@
   style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
 >
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
-    <h2 class="text-xl font-semibold text-slate-900">Open Survey Link</h2>
+    <h2 class="text-xl font-semibold text-slate-900">Otwórz link do ankiety</h2>
     <p class="mt-3 text-sm text-slate-700">
-      Customer: <span class="font-semibold">{{ session.customer.company_name }}</span>
+      Klient: <span class="font-semibold">{{ session.customer.company_name }}</span>
     </p>
     <p class="mt-2 text-sm text-slate-700">
-      Area: <span class="font-semibold">{{ session.customer.address|default:"-" }}</span>
+      Obszar: <span class="font-semibold">{{ session.customer.address|default:"-" }}</span>
     </p>
     <p class="mt-4 text-sm text-slate-700">
-      You are about to open the Customer Area. Viewing an active survey can affect analytics. Are you sure you want to view the survey?
+      Za chwilę otworzysz obszar klienta. Wyświetlenie aktywnej ankiety może wpłynąć na analitykę. Czy na pewno chcesz otworzyć ankietę?
     </p>
     <div class="mt-6 flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'survey-by-token' session.token %}" target="_blank" rel="noopener noreferrer">Yes</a>
-      <button type="button" id="open-survey-back" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Back</button>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'survey-by-token' session.token %}" target="_blank" rel="noopener noreferrer">Tak</a>
+      <button type="button" id="open-survey-back" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Powrót</button>
     </div>
   </div>
 </div>
@@ -204,3 +209,5 @@
   })();
 </script>
 {% endblock %}
+
+

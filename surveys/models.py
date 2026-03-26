@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 
 from crm.models import Customer
 from django.conf import settings
@@ -8,14 +8,14 @@ from django.utils import timezone
 
 class Question(models.Model):
     class QuestionType(models.TextChoices):
-        YES_NO = "yes_no", "Yes / No"
-        YES_NO_NEXT = "yes_no_next", "Yes / No (no condition)"
-        MULTI_CHOICE = "multi_choice", "Multi-many"
-        MULTI_ONE = "multi_one", "Multi-one"
+        YES_NO = "yes_no", "Tak / Nie"
+        YES_NO_NEXT = "yes_no_next", "Tak / Nie (bez warunku)"
+        MULTI_CHOICE = "multi_choice", "Multi-wiele"
+        MULTI_ONE = "multi_one", "Multi-jeden"
         OPEN_WITH_LIST = "open_with_list", "Adress List"
         OPEN_NUMBER_LIST = "open_number_list", "Checkbox/Number"
         OPEN_NUMERIC = "open_numeric", "Numeric"
-        OPEN = "open", "Open question"
+        OPEN = "open", "Pytanie otwarte"
         COMPLEX = "complex", "Complex"
 
     title = models.CharField(max_length=500)
@@ -58,8 +58,8 @@ class QuestionChoice(models.Model):
 
 class SurveyTemplate(models.Model):
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        READY = "ready", "Ready"
+        DRAFT = "draft", "Roboczy"
+        READY = "ready", "Gotowy"
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -138,10 +138,10 @@ class TemplateNode(models.Model):
 
 class SurveySession(models.Model):
     class Status(models.TextChoices):
-        OPEN = "open", "Open"
-        CLOSED = "closed", "Closed"
-        REOPENED = "reopened", "Reopened"
-        SAVED_AGAIN = "saved_again", "Saved Again"
+        OPEN = "open", "Otwarta"
+        CLOSED = "closed", "Zamknięta"
+        REOPENED = "reopened", "Otwarta ponownie"
+        SAVED_AGAIN = "saved_again", "Zapisana ponownie"
 
     customer = models.ForeignKey("crm.Customer", on_delete=models.CASCADE, related_name="survey_sessions")
     template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, related_name="survey_sessions")
@@ -228,8 +228,8 @@ class SurveySession(models.Model):
 class ArchivedSurveySession(SurveySession):
     class Meta:
         proxy = True
-        verbose_name = "Archived Survey"
-        verbose_name_plural = "Archived Surveys"
+        verbose_name = "Archiwalna ankieta"
+        verbose_name_plural = "Archiwalne ankiety"
 
 
 class SurveyAnswer(models.Model):
@@ -270,11 +270,11 @@ class SurveySubmissionSnapshot(models.Model):
 
 class SurveySessionEvent(models.Model):
     class EventType(models.TextChoices):
-        LINK_OPENED = "link_opened", "Link opened"
-        QUESTION_VIEWED = "question_viewed", "Question viewed"
-        ANSWER_SAVED = "answer_saved", "Answer saved"
-        SURVEY_SUBMITTED = "survey_submitted", "Survey submitted"
-        SURVEY_REOPENED = "survey_reopened", "Survey reopened"
+        LINK_OPENED = "link_opened", "Otwarcie linku"
+        QUESTION_VIEWED = "question_viewed", "WyÅwietlenie pytania"
+        ANSWER_SAVED = "answer_saved", "Zapis odpowiedzi"
+        SURVEY_SUBMITTED = "survey_submitted", "Zapisanie ankiety"
+        SURVEY_REOPENED = "survey_reopened", "Ponowne otwarcie ankiety"
 
     session = models.ForeignKey(SurveySession, on_delete=models.CASCADE, related_name="events")
     event_type = models.CharField(max_length=30, choices=EventType.choices)
@@ -287,3 +287,4 @@ class SurveySessionEvent(models.Model):
 
     def __str__(self):
         return f"{self.session} | {self.event_type} | {self.created_at}"
+

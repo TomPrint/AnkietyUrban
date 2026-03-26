@@ -1,39 +1,39 @@
 {% extends "base.html" %}
 
-{% block title %}Customer Detail | Portal Urban Vision{% endblock %}
+{% block title %}Szczegóły klienta | Portal Urban Vision{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Portal Customer Detail</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczegóły klienta w portalu</p>
       <h1 class="mt-2 text-3xl font-bold">{{ customer.company_name }}</h1>
       <p class="mt-2 text-sm text-slate-600">
-        Address: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
-        | Contact: <span class="font-semibold">{{ customer.contact_person|default:"-" }}</span>
+        Adres: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
+        | Kontakt: <span class="font-semibold">{{ customer.contact_person|default:"-" }}</span>
       </p>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customers' %}">Back to Customers</a>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customer-edit' customer.id %}">Edit Customer</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customers' %}">Powrót do klientów</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customer-edit' customer.id %}">Edytuj klienta</a>
     </div>
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Surveys and Scores</h2>
-    <p class="mt-2 text-sm text-slate-500">Score is based on reached survey flow progress (100% if finished).</p>
+    <h2 class="text-xl font-semibold">Ankiety i wyniki</h2>
+    <p class="mt-2 text-sm text-slate-500">Wynik opiera się na osiągniętym postępie w przebiegu ankiety (100% po zakończeniu).</p>
 
     <div class="mt-6 overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
-            <th class="py-2">Survey ID</th>
-            <th class="py-2">Template</th>
+            <th class="py-2">ID ankiety</th>
+            <th class="py-2">Szablon</th>
             <th class="py-2">Status</th>
-            <th class="py-2">Score</th>
-            <th class="py-2">Saved Versions</th>
-            <th class="py-2">Updated</th>
-            <th class="py-2">Actions</th>
+            <th class="py-2">Wynik</th>
+            <th class="py-2">Zapisane wersje</th>
+            <th class="py-2">Zaktualizowano</th>
+            <th class="py-2">Akcje</th>
           </tr>
         </thead>
         <tbody>
@@ -46,11 +46,11 @@
             <td class="py-2">{{ row.saved_versions_count }}</td>
             <td class="py-2">{{ row.session.updated_at }}</td>
             <td class="py-2">
-              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' row.session.id %}">Details</a>
+              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' row.session.id %}">Szczegóły</a>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="py-4 text-slate-500">No surveys assigned to this customer yet.</td></tr>
+          <tr><td colspan="7" class="py-4 text-slate-500">Brak ankiet przypisanych do tego klienta.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -58,3 +58,5 @@
   </section>
 </main>
 {% endblock %}
+
+

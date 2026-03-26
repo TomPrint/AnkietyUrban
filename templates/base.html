@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="pl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,19 +30,20 @@
         <div class="hidden items-center gap-2 sm:gap-3 lg:flex">
           <a class="uv-nav-link" href="{% url 'portal-home' %}">Portal</a>
           {% if is_portal_section %}
-          <a class="uv-nav-link" href="{% url 'portal-users' %}">Users</a>
-          <a class="uv-nav-link" href="{% url 'portal-customers' %}">Customers</a>
+          <a class="uv-nav-link" href="{% url 'portal-users' %}">Użytkownicy</a>
+          <a class="uv-nav-link" href="{% url 'portal-customers' %}">Klienci</a>
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Ankiety</a>
           <a class="uv-nav-link" href="{% url 'portal-scraper' %}">Scraper</a>
           {% else %}
-          <a class="uv-nav-link" href="{% url 'management-questions' %}">Questions</a>
-          <a class="uv-nav-link" href="{% url 'management-templates' %}">Templates</a>
-          <a class="uv-nav-link" href="{% url 'management-assignments' %}">Survey</a>
+          <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Panel</a>
+          <a class="uv-nav-link" href="{% url 'management-questions' %}">Pytania</a>
+          <a class="uv-nav-link" href="{% url 'management-templates' %}">Szablony</a>
+          <a class="uv-nav-link" href="{% url 'management-assignments' %}">Ankiety</a>
           {% endif %}
           <div class="flex flex-col items-end gap-1">
             <form id="logout-form" method="post" action="{% url 'logout' %}" class="m-0">
               {% csrf_token %}
-              <button type="submit" class="uv-nav-link uv-nav-link-logout">Logout</button>
+              <button type="submit" class="uv-nav-link uv-nav-link-logout">Wyloguj</button>
             </form>
             <span class="text-xs italic text-[color:var(--uv-navy)]">Zalogowany: {{ request.user.username }}</span>
           </div>
@@ -55,16 +56,17 @@
           <div class="grid gap-2">
             <a class="uv-nav-link w-full" href="{% url 'portal-home' %}">Portal</a>
             {% if is_portal_section %}
-            <a class="uv-nav-link w-full" href="{% url 'portal-users' %}">Users</a>
-            <a class="uv-nav-link w-full" href="{% url 'portal-customers' %}">Customers</a>
+            <a class="uv-nav-link w-full" href="{% url 'portal-users' %}">Użytkownicy</a>
+            <a class="uv-nav-link w-full" href="{% url 'portal-customers' %}">Klienci</a>
             <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Ankiety</a>
             <a class="uv-nav-link w-full" href="{% url 'portal-scraper' %}">Scraper</a>
             {% else %}
-            <a class="uv-nav-link w-full" href="{% url 'management-questions' %}">Questions</a>
-            <a class="uv-nav-link w-full" href="{% url 'management-templates' %}">Templates</a>
-            <a class="uv-nav-link w-full" href="{% url 'management-assignments' %}">Survey</a>
+            <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Panel</a>
+            <a class="uv-nav-link w-full" href="{% url 'management-questions' %}">Pytania</a>
+            <a class="uv-nav-link w-full" href="{% url 'management-templates' %}">Szablony</a>
+            <a class="uv-nav-link w-full" href="{% url 'management-assignments' %}">Ankiety</a>
             {% endif %}
-            <button type="button" class="uv-nav-link uv-nav-link-logout w-full" onclick="document.getElementById('logout-form').submit();">Logout</button>
+            <button type="button" class="uv-nav-link uv-nav-link-logout w-full" onclick="document.getElementById('logout-form').submit();">Wyloguj</button>
             <div class="pt-1 text-center text-xs italic text-[color:var(--uv-navy)]">Zalogowany: {{ request.user.username }}</div>
           </div>
         </div>
@@ -100,14 +102,14 @@
         const logoutForm = document.getElementById("logout-form");
         let timer = null;
 
-        function doLogout() {
+        function doWyloguj() {
           if (logoutForm) logoutForm.submit();
         }
 
         function resetIdleTimer() {
           if (timer) clearTimeout(timer);
           timer = setTimeout(() => {
-            doLogout();
+            doWyloguj();
           }, idleMs);
         }
 
@@ -140,3 +142,5 @@
     {% endif %}
   </body>
 </html>
+
+

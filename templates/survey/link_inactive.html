@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Link nieaktywny | Ankiety Urban{% endblock %}
 
@@ -7,7 +7,7 @@
   <section class="rounded-2xl bg-white p-8 text-center shadow-lg">
     <h1 class="text-2xl font-bold">Link do ankiety jest nieaktywny</h1>
     <p class="mt-3 text-slate-600">
-      Ten link do ankiety został dezaktywowany przez administratora.
+      Ten link do ankiety został zdezaktywowany przez administratora.
     </p>
     <p class="mt-1 text-sm text-slate-500">
       Firma: {{ session_customer_name|default:session.customer.company_name }}
@@ -15,3 +15,4 @@
   </section>
 </main>
 {% endblock %}
+

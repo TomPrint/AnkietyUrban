@@ -1,41 +1,41 @@
 {% extends "base.html" %}
 
-{% block title %}Template Builder | Ankiety Urban{% endblock %}
+{% block title %}Kreator szablonu | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-[1400px] px-4 py-6">
   <header class="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Template Builder</p>
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Kreator szablonu</p>
       <h1 class="text-2xl font-bold">{{ template.name }}</h1>
       <p class="mt-1 text-xs font-semibold {% if template.status == 'ready' %}text-emerald-700{% else %}text-amber-700{% endif %}">
         Status: <span id="template-status-label">{{ template.get_status_display }}</span>
       </p>
     </div>
     <div class="flex gap-2">
-      <button id="btn-full-preview" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Fullscreen Preview</button>
-      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-templates' %}">Back</a>
-      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-questions' %}">Question Bank</a>
-      <a class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white" href="{% url 'management-dashboard' %}">Dashboard</a>
+      <button id="btn-full-preview" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Cały ekran</button>
+      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-templates' %}">Powrót</a>
+      <a class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" href="{% url 'management-questions' %}">Baza pytań</a>
+      <a class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white" href="{% url 'management-dashboard' %}">Panel</a>
     </div>
   </header>
 
   <section class="grid gap-4 lg:grid-cols-[300px_1fr_340px]">
     <aside class="rounded-xl bg-white p-4 shadow">
-      <h2 class="text-lg font-semibold">Questions</h2>
-      <p class="mt-1 text-xs text-slate-500">Drag a question into the canvas to create a node.</p>
+      <h2 class="text-lg font-semibold">Pytania</h2>
+      <p class="mt-1 text-xs text-slate-500">Przeciągnij pytanie na obszar roboczy, aby utworzyć węzeł.</p>
       <div class="mt-3 flex items-center gap-2">
         <input
           id="builder-question-search"
           type="search"
-          placeholder="Search questions..."
+          placeholder="Szukaj pytań..."
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
         />
         <button
           id="builder-question-search-btn"
           type="button"
           class="rounded-lg bg-slate-900 px-3 py-2 text-white"
-          aria-label="Search questions"
+          aria-label="Szukaj pytań"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
@@ -45,44 +45,44 @@
       </div>
       <label class="mt-3 flex items-center gap-2 text-xs font-medium text-slate-600">
         <input id="builder-finishing-only" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
-        Show only finishing
+         Tylko pytania końcowe
       </label>
       <div class="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="yes_no" />
-          Yes/No
+          Tak/Nie
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="yes_no_next" />
-          Yes/No (no condition)
+          Tak/Nie (bez warunku)
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="open" />
-          Open
+          Otwarte
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="multi_choice" />
-          Multi-many
+          Wielokrotny wybór
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="multi_one" />
-          Multi-one
+          Jednokrotny wybór
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="open_numeric" />
-          Numeric
+          Liczbowe
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="open_with_list" />
-          Adress List
+          Lista adresów
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="open_number_list" />
-          Checkbox/Number
+          Checkbox/Liczba
         </label>
         <label class="inline-flex items-center gap-1">
           <input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-type-filter="complex" />
-          Complex
+          Złożone
         </label>
       </div>
       <div class="mt-3 space-y-2">
@@ -90,7 +90,7 @@
         <div
           draggable="true"
           data-question-id="{{ q.id }}"
-          data-question-search="{{ q.title|lower }} {{ q.get_question_type_display|lower }}"
+          data-question-search="{{ q.title|lower }} {% if q.question_type == 'yes_no' %}tak/nie{% elif q.question_type == 'yes_no_next' %}tak/nie (bez warunku){% elif q.question_type == 'multi_choice' %}wielokrotny wyb&#243;r{% elif q.question_type == 'multi_one' %}jednokrotny wyb&#243;r{% elif q.question_type == 'open' %}otwarte{% elif q.question_type == 'open_with_list' %}lista adres&#243;w{% elif q.question_type == 'open_number_list' %}checkbox/liczba{% elif q.question_type == 'open_numeric' %}liczbowe{% elif q.question_type == 'complex' %}z&#322;o&#380;one{% else %}{{ q.get_question_type_display|lower }}{% endif %}"
           data-is-finishing="{% if q.is_finishing %}1{% else %}0{% endif %}"
           data-question-type="{{ q.question_type }}"
           class="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm"
@@ -98,13 +98,13 @@
           <div class="flex items-center justify-between gap-2">
             <div class="font-semibold">{{ q.title }}</div>
             {% if q.is_finishing %}
-              <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">FINISHING</span>
+              <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">KO&#323;COWE</span>
             {% endif %}
           </div>
-          <div class="text-xs uppercase text-slate-500">{{ q.get_question_type_display }}</div>
+          <div class="text-xs uppercase text-slate-500">{% if q.question_type == 'yes_no' %}Tak/Nie{% elif q.question_type == 'yes_no_next' %}Tak/Nie (bez warunku){% elif q.question_type == 'multi_choice' %}Wielokrotny wyb&#243;r{% elif q.question_type == 'multi_one' %}Jednokrotny wyb&#243;r{% elif q.question_type == 'open' %}Otwarte{% elif q.question_type == 'open_with_list' %}Lista adres&#243;w{% elif q.question_type == 'open_number_list' %}Checkbox/Liczba{% elif q.question_type == 'open_numeric' %}Liczbowe{% elif q.question_type == 'complex' %}Z&#322;o&#380;one{% else %}{{ q.get_question_type_display }}{% endif %}</div>
         </div>
         {% empty %}
-        <p class="text-sm text-slate-500">No questions. Create questions first.</p>
+        <p class="text-sm text-slate-500">Brak pytań. Najpierw utwórz pytania.</p>
         {% endfor %}
       </div>
     </aside>
@@ -116,83 +116,83 @@
     </div>
 
     <aside class="rounded-xl bg-white p-4 shadow">
-      <h2 class="text-lg font-semibold">Inspector</h2>
-      <p class="mt-1 text-xs text-slate-500">Select node to configure transitions and branch endings.</p>
+      <h2 class="text-lg font-semibold">Inspektor</h2>
+      <p class="mt-1 text-xs text-slate-500">Wybierz węzeł, aby skonfigurować przejścia i zakończenia gałęzi.</p>
       <p id="connect-status" class="mt-2 text-xs font-semibold text-blue-700"></p>
       <form id="node-form" class="mt-4 space-y-3">
         <div>
-          <label class="mb-1 block text-sm font-medium">Node Question</label>
+          <label class="mb-1 block text-sm font-medium">Węzeł</label>
           <p id="f-node-id" class="mb-1 text-xs font-semibold text-slate-500"></p>
-          <p id="f-node-forced" class="mb-1 hidden text-xs font-semibold text-emerald-700">Forced start node</p>
+          <p id="f-node-forced" class="mb-1 hidden text-xs font-semibold text-emerald-700">Wymuszony węzeł startowy</p>
           <div id="f-node-question" class="rounded border border-slate-300 bg-slate-50 px-2 py-2 text-sm"></div>
         </div>
 
         <div id="block-next">
-          <label class="mb-1 block text-sm font-medium">Next Node</label>
+          <label class="mb-1 block text-sm font-medium">Następny węzeł</label>
           <select id="f-next" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
         </div>
         <label id="block-end-next" class="flex items-center gap-2 text-sm">
           <input id="f-end-next" type="checkbox" />
-          This node ends the survey
+          Ten węzeł kończy ankietę
         </label>
 
         <div id="block-yes">
-          <label class="mb-1 block text-sm font-medium">YES -> Node</label>
+          <label class="mb-1 block text-sm font-medium">TAK-&gt; Węzeł</label>
           <select id="f-yes" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
         </div>
         <label id="block-end-yes" class="flex items-center gap-2 text-sm">
           <input id="f-end-yes" type="checkbox" />
-          YES branch ends the survey
+          Gałąź TAK kończy ankietę
         </label>
         <div id="block-no">
-          <label class="mb-1 block text-sm font-medium">NO -> Node</label>
+          <label class="mb-1 block text-sm font-medium">NIE-&gt; Węzeł</label>
           <select id="f-no" class="w-full rounded border border-slate-300 px-2 py-2 text-sm"></select>
         </div>
         <label id="block-end-no" class="flex items-center gap-2 text-sm">
           <input id="f-end-no" type="checkbox" />
-          NO branch ends the survey
+          Gałąź NIE kończy ankietę
         </label>
 
-        <div class="flex gap-2 pt-2">
-          <button id="btn-save-node" type="button" class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Save Draft</button>
-          <button id="btn-check-errors" type="button" class="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Check Errors</button>
-          <button id="btn-save-ready" type="button" class="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Save & Ready</button>
-          <button id="btn-delete-node" type="button" class="hidden rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">Delete</button>
+        <div class="flex gap-1.5 pr-2 pt-2">
+          <button id="btn-save-node" type="button" class="rounded bg-slate-900 px-2.5 py-2 text-sm font-semibold text-white">Zapis roboczy</button>
+          <button id="btn-check-errors" type="button" class="rounded border border-slate-300 px-2.5 py-2 text-sm font-semibold">Sprawdź błędy</button>
+          <button id="btn-save-ready" type="button" class="rounded bg-emerald-600 px-2.5 py-2 text-sm font-semibold text-white">Zapisz gotowe</button>
+          <button id="btn-delete-node" type="button" class="hidden rounded border border-red-300 px-2.5 py-2 text-sm font-semibold text-red-700">Usuń</button>
         </div>
         <div id="delete-confirm-box" class="mt-3 hidden rounded-lg border border-red-200 bg-red-50 p-3">
-          <p class="text-sm text-red-800">Delete selected node?</p>
+          <p id="delete-confirm-text" class="text-sm text-red-800">Usuń wybrany węzeł #?</p>
           <div class="mt-2 flex gap-2">
-            <button id="delete-confirm-yes" type="button" class="rounded border border-red-300 px-3 py-1 text-sm font-semibold text-red-700">Confirm Delete</button>
-            <button id="delete-confirm-no" type="button" class="rounded border border-slate-300 px-3 py-1 text-sm font-semibold">Cancel</button>
+            <button id="delete-confirm-yes" type="button" class="rounded border border-red-300 px-3 py-1 text-sm font-semibold text-red-700">Potwierdź usunięcie</button>
+            <button id="delete-confirm-no" type="button" class="rounded border border-slate-300 px-3 py-1 text-sm font-semibold">Anuluj</button>
           </div>
         </div>
         <div id="builder-error-box" class="mt-3 hidden rounded-lg border border-red-200 bg-red-50 p-3">
-          <p id="builder-error-title" class="text-sm font-semibold text-red-800">Fix these errors:</p>
+          <p id="builder-error-title" class="text-sm font-semibold text-red-800">Popraw te błędy:</p>
           <ul id="builder-error-list" class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800"></ul>
         </div>
       </form>
-      <p id="inspector-empty" class="mt-4 text-sm text-slate-500">No node selected.</p>
+      <p id="inspector-empty" class="mt-4 text-sm text-slate-500">Nie wybrano węzła.</p>
     </aside>
   </section>
 </main>
 <div id="save-toast" class="pointer-events-none fixed right-6 top-6 z-50 hidden rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-xl">
-  Draft Saved
+  Wersja robocza zapisana
 </div>
 <div id="validation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
   <div class="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl">
-    <h2 class="text-xl font-semibold text-red-700">Template Validation Errors</h2>
-    <p class="mt-2 text-sm text-slate-700">Fix the following issues before marking this template as Ready:</p>
+    <h2 class="text-xl font-semibold text-red-700">Błędy walidacji szablonu</h2>
+    <p class="mt-2 text-sm text-slate-700">Popraw poniższe problemy przed oznaczeniem szablonu jako gotowy:</p>
     <ul id="validation-errors" class="mt-4 max-h-72 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-slate-800"></ul>
     <div class="mt-6 flex justify-end">
-      <button type="button" id="validation-close" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Close</button>
+      <button type="button" id="validation-close" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Zamknij</button>
     </div>
   </div>
 </div>
 <div id="fullscreen-preview-modal" class="hidden bg-slate-900/90 p-4" style="display:none; position:fixed; inset:0; z-index:9999;">
   <div class="flex h-full flex-col rounded-xl bg-slate-100 p-3">
     <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Template Tree Preview</h2>
-      <button id="fullscreen-preview-close" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Close</button>
+      <h2 class="text-lg font-semibold">Podgląd drzewa szablonu</h2>
+      <button id="fullscreen-preview-close" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Zamknij</button>
     </div>
     <div id="fullscreen-preview-viewport" class="relative flex-1 overflow-auto rounded-lg border border-slate-300 bg-white p-4">
       <div id="fullscreen-preview-stage" class="relative"></div>
@@ -304,9 +304,9 @@
             <div class="flex flex-wrap items-center gap-1">
               <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-white">#${node.id}</span>
               <span class="rounded bg-slate-100 px-2 py-0.5 text-xs">${node.question_type}</span>
-              ${node.is_finishing_question ? '<span class="rounded bg-amber-100 px-1 py-0 text-[9px] font-semibold text-amber-800">FINISHING</span>' : ""}
+              ${node.is_finishing_question ? '<span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">KO&#323;COWE</span>' : ""}
             </div>
-            ${node.is_forced_start ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">FORCED START</span>' : node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
+            ${node.is_forced_start ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">WYMUSZONY START</span>' : node.id === startNodeId ? '<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">START</span>' : ""}
           </div>
           <div class="mt-2 text-sm font-semibold">${node.question_title}</div>
           <div class="mt-2 flex flex-wrap gap-1">
@@ -318,7 +318,7 @@
                   class="connect-btn rounded border px-2 py-0.5 text-xs"
                   style="${yesConfigured ? "background:#15803d;border-color:#15803d;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#166534;"}"
                 >
-                  YES
+                  TAK
                 </button>
                 <button
                   type="button"
@@ -326,7 +326,7 @@
                   class="connect-btn rounded border px-2 py-0.5 text-xs"
                   style="${noConfigured ? "background:#b91c1c;border-color:#b91c1c;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#991b1b;"}"
                 >
-                  NO
+                  NIE
                 </button>
               `
               : `
@@ -336,7 +336,7 @@
                   class="connect-btn rounded border px-2 py-0.5 text-xs"
                   style="${nextConfigured ? "background:#0369a1;border-color:#0369a1;color:#ffffff;" : "background:#ffffff;border-color:#cbd5e1;color:#075985;"}"
                 >
-                  NEXT
+                  DALEJ
                 </button>
               `}
           </div>
@@ -354,7 +354,7 @@
           }
           selectedNodeId = node.id;
           render();
-          fillInspector();
+          fillInspektor();
         });
         el.addEventListener("mousedown", (ev) => {
           if (ev.button !== 0) return;
@@ -382,7 +382,7 @@
 
     function edgeStyle(fromNode, toNode, defaultColor, defaultLabel) {
       if ((fromNode && fromNode.is_finishing_question) || (toNode && toNode.is_finishing_question)) {
-        return { color: "#fde68a", label: "FINISHING" };
+        return { color: "#fde68a", label: "KOŃCOWE" };
       }
       return { color: defaultColor, label: defaultLabel };
     }
@@ -514,16 +514,16 @@
           const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
           const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
           if (yesTarget) {
-            const style = edgeStyle(node, yesTarget, "#16a34a", "YES");
+            const style = edgeStyle(node, yesTarget, "#16a34a", "TAK");
             drawPreviewEdge(node, yesTarget, style.color, style.label, sameTarget ? -6 : 0);
           }
           if (noTarget) {
-            const style = edgeStyle(node, noTarget, "#dc2626", "NO");
+            const style = edgeStyle(node, noTarget, "#dc2626", "NIE");
             drawPreviewEdge(node, noTarget, style.color, style.label, sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
           const nextTarget = nodes.get(node.next_id);
-          const style = edgeStyle(node, nextTarget, "#0284c7", "NEXT");
+          const style = edgeStyle(node, nextTarget, "#0284c7", "DALEJ");
           drawPreviewEdge(node, nextTarget, style.color, style.label);
         }
       }
@@ -586,16 +586,16 @@
           const noTarget = node.no_id && nodes.has(node.no_id) ? nodes.get(node.no_id) : null;
           const sameTarget = yesTarget && noTarget && node.yes_id === node.no_id;
           if (yesTarget) {
-            const style = edgeStyle(node, yesTarget, "#16a34a", "YES");
+            const style = edgeStyle(node, yesTarget, "#16a34a", "TAK");
             drawLine(node, yesTarget, style.color, style.label, sameTarget ? -6 : 0);
           }
           if (noTarget) {
-            const style = edgeStyle(node, noTarget, "#dc2626", "NO");
+            const style = edgeStyle(node, noTarget, "#dc2626", "NIE");
             drawLine(node, noTarget, style.color, style.label, sameTarget ? 6 : 0);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
           const nextTarget = nodes.get(node.next_id);
-          const style = edgeStyle(node, nextTarget, "#0284c7", "NEXT");
+          const style = edgeStyle(node, nextTarget, "#0284c7", "DALEJ");
           drawLine(node, nextTarget, style.color, style.label);
         }
       }
@@ -603,7 +603,7 @@
         const from = nodes.get(connectMode.fromId);
         const defaultColor = connectMode.edge === "yes" ? "#16a34a" : connectMode.edge === "no" ? "#dc2626" : "#0284c7";
         const defaultLabel = `CONNECT ${connectMode.edge.toUpperCase()}`;
-        const style = from.is_finishing_question ? { color: "#fde68a", label: "CONNECT FINISHING" } : { color: defaultColor, label: defaultLabel };
+        const style = from.is_finishing_question ? { color: "#fde68a", label: "POŁĄCZENIE KOŃCOWE" } : { color: defaultColor, label: defaultLabel };
         drawPointerLine(from, pointerCanvas.x, pointerCanvas.y, style.color, style.label);
       }
     }
@@ -633,16 +633,16 @@
         if (connectMode.edge !== "next") {
           connectMode = null;
           updateConnectStatus();
-          showValidationErrors(["Finishing node can use only NEXT connection."]);
-          showToast("Connection blocked", "error");
+          showValidationErrors(["Węzeł końcowy może używać tylko połączenia DALEJ."]);
+          showToast("Połączenie zablokowane", "error");
           render();
           return;
         }
         if (!target.is_finishing_question) {
           connectMode = null;
           updateConnectStatus();
-          showValidationErrors(["Finishing node can connect only to another finishing node."]);
-          showToast("Connection blocked", "error");
+          showValidationErrors(["Węzeł końcowy może łączyć się tylko z innym węzłem końcowym."]);
+          showToast("Połączenie zablokowane", "error");
           render();
           return;
         }
@@ -650,8 +650,8 @@
       if (hasIncomingFromOtherNode(targetId, source.id)) {
         connectMode = null;
         updateConnectStatus();
-        showValidationErrors([`Node #${targetId} already has an incoming connection.`]);
-        showToast("Connection blocked", "error");
+        showValidationErrors([`Węzeł #${targetId} ma już połączenie przychodzące.`]);
+        showToast("Połączenie zablokowane", "error");
         render();
         return;
       }
@@ -715,7 +715,7 @@
       return false;
     }
 
-    function fillInspector() {
+    function fillInspektor() {
       const node = nodes.get(selectedNodeId);
       if (!node) return;
       const questionLabel = document.getElementById("f-node-question");
@@ -728,9 +728,10 @@
       const endNoField = document.getElementById("f-end-no");
       const forcedLabel = document.getElementById("f-node-forced");
       const deleteBtn = document.getElementById("btn-delete-node");
+      const deleteConfirmText = document.getElementById("delete-confirm-text");
       const isForcedStart = !!node.is_forced_start;
 
-      nodeIdLabel.textContent = `Node #${node.id}`;
+      nodeIdLabel.textContent = `Węzeł #${node.id}`;
       questionLabel.textContent = node.question_title;
       fillTargetOptions(nextField, node.id, node.next_id);
       fillTargetOptions(yesField, node.id, node.yes_id);
@@ -744,6 +745,9 @@
       deleteBtn.disabled = isForcedStart;
       deleteBtn.classList.toggle("opacity-50", isForcedStart);
       deleteBtn.classList.toggle("cursor-not-allowed", isForcedStart);
+      if (deleteConfirmText) {
+        deleteConfirmText.textContent = `Usuń wybrany węzeł #${node.id}?`;
+      }
 
       const isYesNo = node.question_type === "yes_no" && !node.is_finishing_question;
       const hasNextTarget = !!node.next_id;
@@ -827,7 +831,7 @@
       const label = document.getElementById("template-status-label");
       if (!label) return;
       if (!rawStatus) return;
-      label.textContent = rawStatus === "ready" ? "Ready" : "Draft";
+      label.textContent = rawStatus === "ready" ? "Gotowy" : "Roboczy";
       label.parentElement.classList.remove("text-emerald-700", "text-amber-700");
       label.parentElement.classList.add(rawStatus === "ready" ? "text-emerald-700" : "text-amber-700");
     }
@@ -846,17 +850,17 @@
       showInlineErrors(errors);
       if (validationTimer) clearTimeout(validationTimer);
       validationTimer = setTimeout(() => {
-        closeValidationModal();
+        closeWalidacjaModal();
         clearInlineErrors();
       }, 8000);
     }
 
     function showInlineErrors(errors) {
-      showInlineStatus("Fix these errors:", errors || [], "error");
+      showInlineStatus("Popraw te błędy:", errors || [], "error");
     }
 
     function showInlineSuccess(message) {
-      showInlineStatus("Validation", [message], "success");
+      showInlineStatus("Walidacja", [message], "success");
       setTimeout(() => {
         clearInlineErrors();
       }, 6000);
@@ -904,10 +908,10 @@
       if (payload && payload.error) {
         return [payload.error];
       }
-      return ["Validation failed."];
+      return ["Walidacja nie powiodła się."];
     }
 
-    function closeValidationModal() {
+    function closeWalidacjaModal() {
       const modal = document.getElementById("validation-modal");
       modal.classList.add("hidden");
       modal.classList.remove("flex");
@@ -926,7 +930,7 @@
       return postForm(updateUrl(selectedNodeId), payload);
     }
 
-    function applyInspectorPreview() {
+    function applyInspektorPreview() {
       const node = nodes.get(selectedNodeId);
       if (!node) return;
 
@@ -958,7 +962,7 @@
       }
 
       render();
-      fillInspector();
+      fillInspektor();
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         saveSelectedNode();
@@ -975,7 +979,7 @@
           for (const n of data.nodes) nodes.set(n.id, n);
           if (selectedNodeId && !nodes.has(selectedNodeId)) selectedNodeId = null;
           render();
-          if (selectedNodeId) fillInspector();
+          if (selectedNodeId) fillInspektor();
         });
     }
 
@@ -1056,7 +1060,7 @@
         render();
       }
       if (ev.key === "Escape") {
-        closeValidationModal();
+        closeWalidacjaModal();
         closeFullscreenPreview();
         hideDeleteConfirmBox();
       }
@@ -1066,14 +1070,14 @@
     previewModal.addEventListener("click", (ev) => {
       if (ev.target === previewModal) closeFullscreenPreview();
     });
-    document.getElementById("validation-close").addEventListener("click", closeValidationModal);
+    document.getElementById("validation-close").addEventListener("click", closeWalidacjaModal);
     document.getElementById("validation-modal").addEventListener("click", (ev) => {
-      if (ev.target.id === "validation-modal") closeValidationModal();
+      if (ev.target.id === "validation-modal") closeWalidacjaModal();
     });
 
     document.getElementById("btn-save-node").addEventListener("click", () => {
       if (!selectedNodeId) {
-        redirectWithToast("Draft Saved", "warning");
+        redirectWithToast("Wersja robocza zapisana", "warning");
         return;
       }
       if (saveTimer) {
@@ -1083,12 +1087,12 @@
       saveSelectedNode()
         .then(() => {
           clearInlineErrors();
-          redirectWithToast("Draft Saved", "warning");
+          redirectWithToast("Wersja robocza zapisana", "warning");
         })
         .catch((payload) => {
           const errors = extractErrors(payload);
           showValidationErrors(errors);
-          showToast("Draft save failed", "error");
+          showToast("Zapis roboczy nie powiódł się", "error");
         });
     });
 
@@ -1097,13 +1101,13 @@
         postForm(SAVE_READY_URL, {})
           .then(() => {
             clearInlineErrors();
-            redirectWithToast("Template is survey-ready", "success");
+            redirectWithToast("Szablon jest gotowy do ankiety", "success");
           })
           .catch((payload) => {
             const errors = extractErrors(payload);
             setStatusLabel("draft");
             showValidationErrors(errors);
-            showToast("Validation errors", "error");
+            showToast("Walidacja errors", "error");
           });
 
       if (!selectedNodeId) {
@@ -1117,7 +1121,7 @@
       saveSelectedNode().then(finalize).catch((payload) => {
         const errors = extractErrors(payload);
         showValidationErrors(errors);
-        showToast("Save failed", "error");
+        showToast("Zapis nie powiódł się", "error");
       });
     });
 
@@ -1126,14 +1130,14 @@
         postForm(CHECK_ERRORS_URL, {})
           .then(() => {
             clearInlineErrors();
-            closeValidationModal();
-            showInlineSuccess("No errors. You can now use Save & Ready.");
-            showToast("No errors. You can now use Save & Ready.", "success", 6000);
+            closeWalidacjaModal();
+            showInlineSuccess("Brak błędów. Możesz teraz użyć Zapisz i oznacz jako gotowe.");
+            showToast("Brak błędów. Możesz teraz użyć Zapisz i oznacz jako gotowe.", "success", 6000);
           })
           .catch((payload) => {
             const errors = extractErrors(payload);
             showValidationErrors(errors);
-            showToast("Validation errors", "error");
+            showToast("Walidacja błędów", "error");
           });
 
       if (!selectedNodeId) {
@@ -1147,7 +1151,7 @@
       saveSelectedNode().then(validateOnly).catch((payload) => {
         const errors = extractErrors(payload);
         showValidationErrors(errors);
-        showToast("Save failed", "error");
+        showToast("Zapis nie powiódł się", "error");
       });
     });
 
@@ -1158,14 +1162,14 @@
       postForm(deleteUrl(nodeId), {})
         .then(() => {
           if (selectedNodeId === nodeId) selectedNodeId = null;
-          showToast("Node deleted", "warning");
+          showToast("Węzeł usunięty", "warning");
           return refreshFromServer();
         })
         .then(setCanvasSize)
         .catch((payload) => {
           const errors = extractErrors(payload);
           showValidationErrors(errors);
-          showToast("Delete failed", "error");
+          showToast("Usuwanie nie powiodło się", "error");
         });
     }
 
@@ -1173,6 +1177,10 @@
     if (deleteNodeBtn) {
       deleteNodeBtn.addEventListener("click", () => {
         if (!selectedNodeId) return;
+        const deleteConfirmText = document.getElementById("delete-confirm-text");
+        if (deleteConfirmText) {
+          deleteConfirmText.textContent = `Usuń wybrany węzeł #${selectedNodeId}?`;
+        }
         if (deleteConfirmBox) deleteConfirmBox.classList.remove("hidden");
       });
     }
@@ -1195,8 +1203,9 @@
     ["f-next", "f-yes", "f-no", "f-end-next", "f-end-yes", "f-end-no"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener("change", applyInspectorPreview);
+      el.addEventListener("change", applyInspektorPreview);
     });
   })();
 </script>
 {% endblock %}
+

@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Users | Portal Urban Vision{% endblock %}
+{% block title %}Użytkownicy | Portal Urban Vision{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
       <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Portal</p>
-      <h1 class="mt-2 text-3xl font-bold">Users</h1>
+      <h1 class="mt-2 text-3xl font-bold">Użytkownicy</h1>
     </div>
     <div class="flex gap-3">
       <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-home' %}">Portal</a>
-      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'portal-user-create' %}">New User</a>
+      <a class="uv-btn-new rounded-lg border border-slate-300 px-4 py-2 font-semibold text-emerald-700" href="{% url 'portal-user-create' %}">Nowy użytkownik</a>
     </div>
   </header>
 
@@ -20,13 +20,13 @@
       <table class="min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
-            <th class="py-2">Username</th>
-            <th class="py-2">Name</th>
-            <th class="py-2">Email</th>
-            <th class="py-2">Staff</th>
-            <th class="py-2">Active</th>
-            <th class="py-2">Survey Links</th>
-            <th class="py-2">Actions</th>
+            <th class="py-2">Login</th>
+            <th class="py-2">Imię i nazwisko</th>
+            <th class="py-2">E-mail</th>
+            <th class="py-2">Administrator</th>
+            <th class="py-2">Aktywny</th>
+            <th class="py-2">Linki do ankiet</th>
+            <th class="py-2">Akcje</th>
           </tr>
         </thead>
         <tbody>
@@ -35,12 +35,12 @@
             <td class="py-2">{{ u.username }}</td>
             <td class="py-2">{{ u.first_name }} {{ u.last_name|default:"" }}</td>
             <td class="py-2">{{ u.email|default:"-" }}</td>
-            <td class="py-2">{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
-            <td class="py-2">{% if u.is_active %}Yes{% else %}No{% endif %}</td>
+            <td class="py-2">{% if u.is_staff %}Tak{% else %}Nie{% endif %}</td>
+            <td class="py-2">{% if u.is_active %}Tak{% else %}Nie{% endif %}</td>
             <td class="py-2">{{ u.generated_links_count }}</td>
             <td class="py-2">
               <div class="flex gap-2">
-                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'portal-user-edit' u.id %}">Edit</a>
+                <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'portal-user-edit' u.id %}">Edytuj</a>
                 <button
                   type="button"
                   class="rounded border border-red-300 px-2 py-1 text-red-700"
@@ -48,13 +48,13 @@
                   data-delete-url="{% url 'portal-user-delete' u.id %}"
                   data-user-name="{{ u.username }}"
                 >
-                  Delete
+                  Usuń
                 </button>
               </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="py-4 text-slate-500">No users yet.</td></tr>
+          <tr><td colspan="7" class="py-4 text-slate-500">Brak użytkowników.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -68,21 +68,21 @@
   style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
 >
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
-    <h2 class="text-xl font-semibold text-red-700">Delete User</h2>
+    <h2 class="text-xl font-semibold text-red-700">Usuń użytkownika</h2>
     <p class="mt-3 text-sm text-slate-700">
-      You are deleting user: <span id="delete-user-name" class="font-semibold"></span>
+      Usuwasz użytkownika: <span id="delete-user-name" class="font-semibold"></span>
     </p>
     <p class="mt-2 text-sm text-red-700">
-      Warning: this user will lose access to the management portal.
+      Uwaga: ten użytkownik utraci dostęp do portalu zarządzania.
     </p>
     <p class="mt-2 text-sm text-slate-600">
-      Confirm button unlocks in <span id="delete-user-counter">5</span> seconds.
+      Przycisk potwierdzenia odblokuje się za <span id="delete-user-counter">5</span> sek.
     </p>
     <form id="delete-user-form" method="post" class="mt-6 flex gap-3">
       {% csrf_token %}
-      <button type="button" id="delete-user-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+      <button type="button" id="delete-user-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Anuluj</button>
       <button type="submit" id="delete-user-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
-        Delete
+        Usuń
       </button>
     </form>
   </div>

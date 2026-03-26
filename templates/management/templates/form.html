@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}{{ title }} | Ankiety Urban{% endblock %}
 
@@ -16,10 +16,12 @@
       </div>
       {% endfor %}
       <div class="flex gap-3">
-        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Save</button>
-        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Cancel</a>
+        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Zapisz</button>
+        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Anuluj</a>
       </div>
     </form>
   </section>
 </main>
 {% endblock %}
+
+

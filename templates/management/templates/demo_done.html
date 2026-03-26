@@ -1,26 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Demo Complete | Ankiety Urban{% endblock %}
+{% block title %}Zakończono demo | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
   <section class="rounded-2xl bg-white p-6 shadow-lg sm:p-8">
-    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Template Demo</p>
-    <h1 class="mt-2 text-2xl font-bold">Demo Complete</h1>
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Demo szablonu</p>
+    <h1 class="mt-2 text-2xl font-bold">Demo zakończone</h1>
     <p class="mt-3 text-sm text-slate-600">
-      You reached the end of template <span class="font-semibold">{{ template.name }}</span>.
+      Dotarłeś do końca szablonu <span class="font-semibold">{{ template.name }}</span>.
     </p>
     <div class="mt-6 flex flex-wrap gap-3">
       <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-template-demo' template.id %}?restart=1">
-        Restart Demo
+        Uruchom demo ponownie
       </a>
       <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-template-builder' template.id %}">
-        Open Builder
+        Otwórz kreator
       </a>
       <a class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" href="{% url 'management-templates' %}">
-        Back to Templates
+        Powrót do szablonów
       </a>
     </div>
   </section>
 </main>
 {% endblock %}
+

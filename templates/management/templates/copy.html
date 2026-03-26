@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Copy Template | Ankiety Urban{% endblock %}
+{% block title %}Kopiuj szablon | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Template Copy</p>
-      <h1 class="mt-2 text-3xl font-bold">Copy Existing Template</h1>
-      <p class="mt-2 text-sm text-slate-600">Use any template (live or not) as source and create a new draft copy.</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Kopia szablonu</p>
+      <h1 class="mt-2 text-3xl font-bold">Kopiuj istniejący szablon</h1>
+      <p class="mt-2 text-sm text-slate-600">Użyj dowolnego szablonu (aktywnego lub nie) jako źródła i utwórz nową kopię roboczą.</p>
     </div>
-    <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Back to Templates</a>
+    <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Powrót do szablonów</a>
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
@@ -18,32 +18,34 @@
       {% csrf_token %}
 
       <div>
-        <label class="mb-1 block text-sm font-medium" for="source-template">Source Template</label>
+        <label class="mb-1 block text-sm font-medium" for="source-template">Szablon źródłowy</label>
         <select id="source-template" name="source_template" class="w-full rounded border border-slate-300 px-3 py-2" required>
-          <option value="">Select template</option>
+          <option value="">Wybierz szablon</option>
           {% for t in templates %}
             <option value="{{ t.id }}" {% if initial_source == t.id|stringformat:"s" %}selected{% endif %}>
-              {{ t.name }}{% if t.live_sessions_count %} [LIVE]{% else %} [NOT USED]{% endif %} | {{ t.get_status_display }}
+              {{ t.name }}{% if t.live_sessions_count %} [AKTYWNY]{% else %} [NIEUŻYWANY]{% endif %} | {{ t.get_status_display }}
             </option>
           {% endfor %}
         </select>
       </div>
 
       <div>
-        <label class="mb-1 block text-sm font-medium" for="new-name">New Template Name</label>
-        <input id="new-name" name="name" type="text" class="w-full rounded border border-slate-300 px-3 py-2" placeholder="Leave empty to auto-name as '(copy)'">
+        <label class="mb-1 block text-sm font-medium" for="new-name">Nazwa nowego szablonu</label>
+        <input id="new-name" name="name" type="text" class="w-full rounded border border-slate-300 px-3 py-2" placeholder="Pozostaw puste, aby automatycznie dodać nazwę (kopia).">
       </div>
 
       <div>
-        <label class="mb-1 block text-sm font-medium" for="new-description">Description (optional)</label>
-        <textarea id="new-description" name="description" rows="4" class="w-full rounded border border-slate-300 px-3 py-2" placeholder="If empty, source description will be copied."></textarea>
+        <label class="mb-1 block text-sm font-medium" for="new-description">Opis (opcjonalnie)</label>
+        <textarea id="new-description" name="description" rows="4" class="w-full rounded border border-slate-300 px-3 py-2" placeholder="Jeśli puste, zostanie skopiowany opis źródłowy."></textarea>
       </div>
 
       <div class="flex gap-3">
-        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Copy and Open Builder</button>
-        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Cancel</a>
+        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Skopiuj i otwórz kreator</button>
+        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-templates' %}">Anuluj</a>
       </div>
     </form>
   </section>
 </main>
 {% endblock %}
+
+

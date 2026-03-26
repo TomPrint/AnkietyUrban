@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Assign Survey | Ankiety Urban{% endblock %}
+{% block title %}Przypisz ankietę | Ankiety Urban{% endblock %}
 
 {% block content %}
 <style>
   .survey-portal-table {
     border-collapse: separate;
-    border-spacing: 0 0.55rem;
+    border-spacing: 0 0.35rem;
   }
   .survey-portal-table thead th {
-    padding: 0.7rem 0.85rem;
+    padding: 0.55rem 0.55rem;
+    font-size: 0.82rem;
   }
   .survey-sort-link {
     display: inline-flex;
@@ -30,7 +31,7 @@
     line-height: 1;
   }
   .survey-portal-table tbody td {
-    padding: 0.85rem 0.85rem;
+    padding: 0.6rem 0.55rem;
     vertical-align: top;
   }
   .survey-portal-table tbody tr {
@@ -40,64 +41,65 @@
   .survey-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    min-width: 7rem;
+    gap: 0.35rem;
+    min-width: 6rem;
   }
   .survey-action-btn {
-    width: 7rem;
-    padding: 0.25rem 0.5rem !important;
-    font-size: 0.82rem;
+    width: 5.5rem;
+    padding: 0.22rem 0.4rem !important;
+    font-size: 0.76rem;
+    line-height: 1.15;
     justify-content: center;
   }
 </style>
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Management</p>
-      <h1 class="mt-2 text-3xl font-bold">Assign Survey to Customer</h1>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Zarządzanie</p>
+      <h1 class="mt-2 text-3xl font-bold">Przypisz ankietę do klienta</h1>
     </div>
-    <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-dashboard' %}">Dashboard</a>
+    <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-dashboard' %}">Panel główny</a>
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Create Assignment</h2>
+    <h2 class="text-xl font-semibold">Utwórz przypisanie</h2>
     <form method="post" class="mt-4 grid gap-4 md:grid-cols-4">
       {% csrf_token %}
       <div>
-        <label class="mb-1 block text-sm font-medium" for="{{ form.customer.id_for_label }}">Customer</label>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.customer.id_for_label }}">Klient</label>
         {{ form.customer }}
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium" for="{{ form.template.id_for_label }}">Ready Template</label>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.template.id_for_label }}">Gotowy szablon</label>
         {{ form.template }}
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium" for="{{ form.is_internal.id_for_label }}">Survey Type</label>
+        <label class="mb-1 block text-sm font-medium" for="{{ form.is_internal.id_for_label }}">Typ ankiety</label>
         {{ form.is_internal }}
       </div>
       <div class="flex items-end">
-        <button class="uv-btn-new w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Generate Link</button>
+        <button class="uv-btn-new w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Generuj link</button>
       </div>
     </form>
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Survey Portal</h2>
+    <h2 class="text-xl font-semibold">Ankiety</h2>
     <form method="get" class="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
       <input
         type="search"
         name="q"
         value="{{ q }}"
-        placeholder="Search by customer, template, status, or token"
+        placeholder="Szukaj po kliencie, szablonie, statusie lub linku"
         class="w-full rounded-lg border border-slate-300 px-3 py-2"
       >
-      <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit" aria-label="Search">
+      <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit" aria-label="Szukaj">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <circle cx="11" cy="11" r="7"></circle>
           <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
         </svg>
       </button>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-center" href="{% url 'management-assignments' %}">Reset</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-center" href="{% url 'management-assignments' %}">Wyczyść</a>
     </form>
     <div class="mt-4 overflow-x-auto">
       <table class="survey-portal-table min-w-full text-left text-sm">
@@ -105,19 +107,19 @@
           <tr>
             <th>
               <a class="survey-sort-link {% if sort == 'customer' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=customer&dir={% if sort == 'customer' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Customer
+                Klient
                 {% if sort == 'customer' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'template' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=template&dir={% if sort == 'template' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Template
+                Szablon
                 {% if sort == 'template' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'created_by' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=created_by&dir={% if sort == 'created_by' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Created By
+                Autor
                 {% if sort == 'created_by' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
@@ -129,36 +131,36 @@
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'int_ext' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=int_ext&dir={% if sort == 'int_ext' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Int/Ext
+                <span class="whitespace-nowrap">Wew/Zew</span>
                 {% if sort == 'int_ext' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'first_open' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=first_open&dir={% if sort == 'first_open' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                First Open
+                Pierwsze otwarcie
                 {% if sort == 'first_open' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'first_save' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=first_save&dir={% if sort == 'first_save' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                First Save
+                Pierwszy zapis
                 {% if sort == 'first_save' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'saved_again' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=saved_again&dir={% if sort == 'saved_again' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Saved Again
+                Zapis ponowny
                 {% if sort == 'saved_again' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'link' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=link&dir={% if sort == 'link' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                Activity
+                Aktywność
                 {% if sort == 'link' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
-            <th>Survey Link</th>
-            <th>Action</th>
+            <th>Link ankiety</th>
+            <th>Akcje</th>
           </tr>
         </thead>
         <tbody>
@@ -167,13 +169,13 @@
             <td>
               {{ s.customer.company_name }}
               {% if s.customer.is_archived %}
-                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ARCHIVED</span>
+                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ZARCHIWIZOWANY</span>
               {% endif %}
             </td>
             <td>
               {{ s.template.name }}
               {% if s.template.is_archived %}
-                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ARCHIVED</span>
+                <span class="ml-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ZARCHIWIZOWANY</span>
               {% endif %}
             </td>
             <td>
@@ -187,20 +189,20 @@
             </td>
             <td>
               {% if s.status == 'open' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Open</span>
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Otwarte</span>
               {% elif s.status == 'closed' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Closed</span>
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Zamknięta</span>
               {% elif s.status == 'saved_again' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Closed Again</span>
+                <span class="inline-flex items-center whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Zapisana ponownie</span>
               {% else %}
                 <span class="inline-flex items-center whitespace-nowrap rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">{{ s.get_status_display }}</span>
               {% endif %}
             </td>
             <td>
               {% if s.is_internal %}
-                <span class="rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">INT</span>
+                <span class="rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">WEW</span>
               {% else %}
-                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">EXT</span>
+                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">ZEW</span>
               {% endif %}
             </td>
             <td>{{ s.started_at|default:"-" }}</td>
@@ -208,32 +210,32 @@
             <td>{{ s.last_saved_again_at|default:"-" }}</td>
             <td>
               {% if s.is_link_active %}
-                <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Active</span>
+                <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Aktywny</span>
               {% else %}
-                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">Inactive</span>
+                <span class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">Nieaktywny</span>
               {% endif %}
             </td>
             <td>
               <button
                 type="button"
-                class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold"
+                class="rounded border border-slate-300 px-1.5 py-1 text-[11px] font-semibold leading-tight"
                 data-copy-survey-link="true"
                 data-link="{{ request.scheme }}://{{ request.get_host }}{% url 'survey-by-token' s.token %}"
                 data-company="{{ s.customer.company_name }}"
                 data-template="{{ s.template.name }}"
               >
-                Copy Link
+                Kopiuj link
               </button>
             </td>
             <td>
               <div class="survey-actions">
-                <a class="survey-action-btn rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' s.id %}">Details</a>
+                <a class="survey-action-btn rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' s.id %}">Szczegóły</a>
                 <form method="post" action="{% url 'management-assignment-link-toggle' s.id %}">
                   {% csrf_token %}
                   {% if s.is_link_active %}
-                    <button class="uv-btn-warn survey-action-btn rounded border border-amber-300 px-2 py-1 text-amber-700" type="submit" name="action" value="deactivate">Deactivate</button>
+                    <button class="uv-btn-warn survey-action-btn rounded border border-amber-300 px-2 py-1 text-amber-700" type="submit" name="action" value="deactivate">Dezaktywuj</button>
                   {% else %}
-                    <button class="uv-btn-new survey-action-btn rounded border border-emerald-300 px-2 py-1 text-emerald-700" type="submit" name="action" value="activate">Activate</button>
+                    <button class="uv-btn-new survey-action-btn rounded border border-emerald-300 px-2 py-1 text-emerald-700" type="submit" name="action" value="activate">Aktywuj</button>
                   {% endif %}
                 </form>
                 <button
@@ -243,13 +245,12 @@
                   data-delete-url="{% url 'management-assignment-delete' s.id %}"
                   data-customer="{{ s.customer.company_name }}"
                 >
-                  Delete
-                </button>
+                  Usuń
               </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="11" class="py-4 text-slate-500">No assignments yet.</td></tr>
+          <tr><td colspan="11" class="py-4 text-slate-500">Brak przypisań.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -263,22 +264,19 @@
   style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
 >
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
-    <h2 class="text-xl font-semibold text-red-700">Delete Survey Session</h2>
-    <p class="mt-3 text-sm text-slate-700">
-      You are deleting survey for: <span id="delete-survey-customer" class="font-semibold"></span>
+    <h2 class="text-xl font-semibold text-red-700">Usuń sesję ankiety</h2>
+      Usuwasz ankietę dla: <span id="delete-survey-customer" class="font-semibold"></span>
     </p>
     <p class="mt-2 text-sm text-red-700">
-      Warning: this will archive the survey and deactivate its link.
+      Uwaga: ta operacja usunie ankietę i jej wyniki oraz dezaktywuje jej link.
     </p>
     <p class="mt-2 text-sm text-slate-600">
-      Confirm button unlocks in <span id="delete-survey-counter">5</span> seconds.
-    </p>
+      Przycisk potwierdzenia odblokuje się za <span id="delete-survey-counter">5</span> sek.
     <form id="delete-survey-form" method="post" class="mt-6 flex gap-3">
       {% csrf_token %}
-      <button type="button" id="delete-survey-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+      <button type="button" id="delete-survey-cancel" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Anuluj</button>
       <button type="submit" id="delete-survey-confirm" class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
-        Delete
-      </button>
+        Usuń
     </form>
   </div>
 </div>
@@ -288,9 +286,8 @@
   class="pointer-events-none hidden rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-xl"
   style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10020;display:none;"
 >
-  Link copied
+  Skopiowano link
 </div>
-
 <script>
   (function () {
     const modal = document.getElementById("delete-survey-modal");
@@ -394,14 +391,16 @@
       try {
         const ok = await copyText(btn.dataset.link || "");
         if (ok) {
-          showToast(label ? `Link for ${label} copied` : "Link copied");
+          showToast(label ? `Skopiowano link dla ${label}` : "Skopiowano link");
         } else {
-          showToast("Copy failed");
+          showToast("Nie udało się skopiować");
         }
       } catch (_err) {
-        showToast("Copy failed");
+        showToast("Nie udało się skopiować");
       }
     });
   })();
 </script>
 {% endblock %}
+
+

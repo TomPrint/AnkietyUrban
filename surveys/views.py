@@ -1,8 +1,9 @@
-import csv
+﻿import csv
 import html
 import json
 import logging
 import uuid
+from io import BytesIO
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -22,6 +23,10 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import View
+from docx import Document
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt
 
 from crm.models import Customer
 
@@ -217,40 +222,48 @@ def _validate_template_graph(template: SurveyTemplate):
     node_map = {n.id: n for n in nodes}
 
     if not nodes:
-        errors.append("Template has no nodes.")
+        errors.append("Szablon nie ma węzłów.")
         return errors
 
     start = _start_node(template)
     if not start:
-        errors.append("Template has no start node.")
+        errors.append("Szablon nie ma węzła startowego.")
         return errors
 
     for n in nodes:
         if n.question.is_archived:
-            errors.append(f"Node #{n.id}: question is archived. Replace it before saving as Ready.")
+            errors.append(f"Węzeł #{n.id}: pytanie jest zarchiwizowane. Zamień je przed zapisaniem jako Gotowy.")
             continue
+
         if n.question.is_finishing and n.question.question_type == Question.QuestionType.YES_NO:
             errors.append(
-                f"Node #{n.id}: finishing question cannot be Yes / No. Use Yes / No (no condition)."
+                f"Węzeł #{n.id}: pytanie kończące nie może być typu Tak / Nie. Użyj Tak / Nie (bez warunku)."
             )
             continue
+
         if n.question.question_type == Question.QuestionType.YES_NO:
             has_yes = bool(n.end_on_yes or n.yes_node_id)
             has_no = bool(n.end_on_no or n.no_node_id)
-            if not has_yes:
-                errors.append(f"Node #{n.id}: YES path is missing (add link or mark end).")
-            if not has_no:
-                errors.append(f"Node #{n.id}: NO path is missing (add link or mark end).")
+            if not (has_yes and has_no):
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie Tak / Nie musi mieć obie gałęzie (TAK i NIE) albo zakończenie ankiety dla każdej z nich."
+                )
         else:
             if not (n.ends_survey or n.next_node_id):
-                errors.append(f"Node #{n.id}: NEXT path is missing (add link or mark end).")
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie standardowe musi mieć ścieżkę DALEJ albo oznaczone zakończenie."
+                )
+
         if n.question.is_finishing:
             if n.yes_node_id or n.no_node_id or n.end_on_yes or n.end_on_no:
-                errors.append(f"Node #{n.id}: finishing node can only use NEXT path.")
-            if n.next_node_id:
-                next_node = node_map.get(n.next_node_id)
-                if next_node and not next_node.question.is_finishing:
-                    errors.append(f"Node #{n.id}: finishing node NEXT can point only to finishing node.")
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie kończące może używać tylko ścieżki DALEJ."
+                )
+            next_node = node_map.get(n.next_node_id)
+            if next_node and not next_node.question.is_finishing:
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie kończące może wskazywać tylko na węzeł końcowy."
+                )
 
     reachable = set()
     stack = [start.id]
@@ -267,7 +280,7 @@ def _validate_template_graph(template: SurveyTemplate):
     unreachable = [n.id for n in nodes if n.id not in reachable]
     if unreachable:
         errors.append(
-            "Some nodes are not reachable from start: " + ", ".join(f"#{nid}" for nid in sorted(unreachable))
+            "Niektóre węzły nie są osiągalne z węzła startowego: " + ", ".join(f"Węzeł #{nid}" for nid in sorted(unreachable))
         )
 
     visiting = set()
@@ -292,7 +305,7 @@ def _validate_template_graph(template: SurveyTemplate):
     dfs(start.id)
     if cycle_hits:
         errors.append(
-            "Loop detected in survey flow (returning to same node is not allowed): "
+            "Wykryto pętlę w ścieżce ankiety (powrót do tego samego węzła nie jest dozwolony) "
             + ", ".join(f"#{nid}" for nid in sorted(cycle_hits))
         )
 
@@ -370,10 +383,10 @@ def _resolve_previous_node(session: SurveySession, current_node: TemplateNode) -
 def _start_node_or_404(template: SurveyTemplate, *, require_ready: bool = True):
     _ensure_forced_start_node(template)
     if require_ready and template.status != SurveyTemplate.Status.READY:
-        raise Http404("Template is not survey-ready.")
+        raise Http404("Szablon nie jest gotowy do ankiety.")
     start = _start_node(template)
     if not start:
-        raise Http404("Template has no nodes.")
+        raise Http404("Szablon nie ma węzłów.")
     return start
 
 
@@ -410,19 +423,17 @@ def _validate_target_node(template: SurveyTemplate, node_id: str | None, source_
         return None
     target = get_object_or_404(TemplateNode, pk=node_id, template=template)
     if target.is_forced_start:
-        raise Http404("Cannot link to forced start node.")
+        raise Http404("Nie można połączyć z wymuszonym węzłem startowym.")
     if source_node is not None and source_node.question.is_finishing and not target.question.is_finishing:
-        raise ValueError("Finishing node can connect only to another finishing node.")
+        raise ValueError("Węzeł kończący może łączyć się tylko z innym węzłem końcowym.")
     incoming_qs = template.nodes.filter(
         Q(next_node=target) | Q(yes_node=target) | Q(no_node=target)
     )
     if source_node is not None:
         incoming_qs = incoming_qs.exclude(pk=source_node.pk)
     if (not target.question.is_finishing) and incoming_qs.exists():
-        raise ValueError(f"Node #{target.id} already has an incoming connection.")
+        raise ValueError(f"Węzeł #{target.id} ma już połączenie przychodzące.")
     return target
-
-
 def _serialize_node(template: SurveyTemplate, n: TemplateNode):
     return {
         "id": n.id,
@@ -568,12 +579,21 @@ def _persist_answer(answer: SurveyAnswer, node: TemplateNode, value):
 
 
 def _answer_value_display(answer: SurveyAnswer) -> str:
+    def _normalize_bool_label(raw_value):
+        if isinstance(raw_value, str):
+            normalized = raw_value.strip().lower()
+            if normalized == "yes":
+                return "Tak"
+            if normalized == "no":
+                return "Nie"
+        return raw_value
+
     q_type = answer.question.question_type
     if q_type in (Question.QuestionType.YES_NO, Question.QuestionType.YES_NO_NEXT):
         if answer.yes_no_answer is True:
-            return "Yes"
+            return "Tak"
         if answer.yes_no_answer is False:
-            return "No"
+            return "Nie"
         return "-"
     if q_type == Question.QuestionType.MULTI_CHOICE:
         labels = list(answer.selected_choices.values_list("label", flat=True))
@@ -677,9 +697,14 @@ def _answer_value_display(answer: SurveyAnswer) -> str:
                             selected_labels.append(options[index])
                     value_text = ", ".join(selected_labels) if selected_labels else "-"
                 else:
-                    value_text = ", ".join(str(v) for v in value) if value else "-"
+                    value_text = ", ".join(str(_normalize_bool_label(v)) for v in value) if value else "-"
             else:
-                value_text = str(value).strip() if value is not None and str(value).strip() else "-"
+                normalized_value = _normalize_bool_label(value)
+                value_text = (
+                    str(normalized_value).strip()
+                    if normalized_value is not None and str(normalized_value).strip()
+                    else "-"
+                )
             rendered.append(f"{label}: {value_text}")
         return " | ".join(rendered)
     value = (answer.open_answer or "").strip()
@@ -715,14 +740,14 @@ def _capture_submission_snapshot(session: SurveySession) -> SurveySubmissionSnap
 
 def _survey_notification_status_label(session: SurveySession) -> str:
     if session.status == SurveySession.Status.SAVED_AGAIN:
-        return "Saved again"
+        return "Zapisana ponownie"
     if session.status == SurveySession.Status.CLOSED:
-        return "Saved"
+        return "Zapisana"
     return session.get_status_display()
 
 
 def _survey_notification_origin_label(session: SurveySession) -> str:
-    return "Internal" if session.is_internal else "External"
+    return "Wewnętrzna" if session.is_internal else "Zewnętrzna"
 
 
 def _format_notification_answer_text(question_type: str, raw_value: str) -> str:
@@ -768,6 +793,19 @@ def _format_notification_answer_html(question_type: str, raw_value: str) -> str:
     return f'<div style="font-size:15px; line-height:22px; color:#334155;">{html.escape(value)}</div>'
 
 
+def _split_structured_answer_parts(question_type: str, raw_value: str) -> list[str]:
+    value = (raw_value or "").strip()
+    if not value:
+        return []
+    if question_type in (
+        Question.QuestionType.COMPLEX,
+        Question.QuestionType.OPEN_NUMBER_LIST,
+        Question.QuestionType.OPEN_WITH_LIST,
+    ):
+        return [part.strip() for part in value.split(" | ") if part.strip()]
+    return [value]
+
+
 def _build_submission_notification_email(
     session: SurveySession, snapshot: SurveySubmissionSnapshot
 ) -> tuple[str, str, str]:
@@ -778,18 +816,18 @@ def _build_submission_notification_email(
     lines = [
         "ZAPISANO NOWA ANKIETE",
         "",
-        f"Customer: {customer_name}",
-        f"Template: {template_name}",
-        f"Survey type: {_survey_notification_origin_label(session)}",
+        f"Klient: {customer_name}",
+        f"Szablon: {template_name}",
+        f"Typ ankiety: {_survey_notification_origin_label(session)}",
         f"Status: {_survey_notification_status_label(session)}",
-        f"Saved at: {saved_at}",
+        f"Data zapisu: {saved_at}",
         "",
-        "Answers:",
+        "Odpowiedzi:",
     ]
     html_answers = []
 
     for index, item in enumerate(snapshot.answers, start=1):
-        question_title = str(item.get("question_title", "")).strip() or f"Question {index}"
+        question_title = str(item.get("question_title", "")).strip() or f"Pytanie {index}"
         question_type = str(item.get("question_type", "")).strip()
         answer_value = str(item.get("value", "")).strip() or "-"
         formatted_text_value = _format_notification_answer_text(question_type, answer_value)
@@ -802,7 +840,7 @@ def _build_submission_notification_email(
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:12px; background:#ffffff;">
               <tr>
                 <td style="padding:12px 14px 6px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
-                  Question {index}
+                  Pytanie {index}
                 </td>
               </tr>
               <tr>
@@ -812,7 +850,7 @@ def _build_submission_notification_email(
               </tr>
               <tr>
                 <td style="padding:0 14px 6px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b; border-top:1px solid #e5e7eb;">
-                  Answer
+                  Odpowiedź
                 </td>
               </tr>
               <tr>
@@ -824,7 +862,7 @@ def _build_submission_notification_email(
             """
         )
 
-    subject = f"Urban Vision survey saved - {customer_name}"
+    subject = f"Urban Vision - zapisano ankietę - {customer_name}"
     html_body = f"""
     <html>
       <head>
@@ -848,7 +886,7 @@ def _build_submission_notification_email(
                         <td style="padding:0 0 12px 0;">
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
                             <tr>
-                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Customer</td>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Klient</td>
                             </tr>
                             <tr>
                               <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(customer_name)}</td>
@@ -860,7 +898,7 @@ def _build_submission_notification_email(
                         <td style="padding:0 0 12px 0;">
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
                             <tr>
-                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Template</td>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Szablon</td>
                             </tr>
                             <tr>
                               <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(template_name)}</td>
@@ -872,7 +910,7 @@ def _build_submission_notification_email(
                         <td style="padding:0 0 12px 0;">
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
                             <tr>
-                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Survey type</td>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Typ ankiety</td>
                             </tr>
                             <tr>
                               <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(_survey_notification_origin_label(session))}</td>
@@ -896,7 +934,7 @@ def _build_submission_notification_email(
                         <td style="padding:0;">
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
                             <tr>
-                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Saved at</td>
+                              <td style="padding:12px 14px 4px 14px; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Data zapisu</td>
                             </tr>
                             <tr>
                               <td style="padding:0 14px 12px 14px; font-size:16px; line-height:22px; font-weight:700; color:#0f172a;">{html.escape(saved_at)}</td>
@@ -905,7 +943,7 @@ def _build_submission_notification_email(
                         </td>
                       </tr>
                     </table>
-                    <div style="font-size:18px; line-height:24px; font-weight:700; margin:0 0 12px 0;">Answers</div>
+                    <div style="font-size:18px; line-height:24px; font-weight:700; margin:0 0 12px 0;">Odpowiedzi</div>
                     {''.join(html_answers)}
                   </td>
                 </tr>
@@ -1079,7 +1117,7 @@ def user_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("portal-users")
-    return render(request, "management/users/form.html", {"form": form, "title": "Create User"})
+    return render(request, "management/users/form.html", {"form": form, "title": "Dodaj Użytkownika"})
 
 
 @staff_required
@@ -1089,7 +1127,7 @@ def user_edit(request: HttpRequest, user_id: int) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("portal-users")
-    return render(request, "management/users/form.html", {"form": form, "title": "Edit User"})
+    return render(request, "management/users/form.html", {"form": form, "title": "Edytuj Użytkownika"})
 
 
 @staff_required
@@ -1097,7 +1135,7 @@ def user_edit(request: HttpRequest, user_id: int) -> HttpResponse:
 def user_delete(request: HttpRequest, user_id: int) -> HttpResponse:
     managed_user = get_object_or_404(User, pk=user_id)
     if managed_user.id == request.user.id:
-        messages.error(request, "You cannot delete your own account.")
+        messages.error(request, "Nie możesz usunąć własnego konta.")
         return redirect("portal-users")
     managed_user.delete()
     return redirect("portal-users")
@@ -1230,13 +1268,13 @@ def survey_snapshot_csv(request: HttpRequest, session_id: int, snapshot_id: int)
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow(["Session ID", session.id])
-    writer.writerow(["Customer", _session_customer_name(session)])
-    writer.writerow(["Template", _session_template_name(session)])
+    writer.writerow(["Klient", _session_customer_name(session)])
+    writer.writerow(["Szablon", _session_template_name(session)])
     writer.writerow(["Version", snapshot.version_number])
-    writer.writerow(["Saved At", snapshot.saved_at])
+    writer.writerow(["Zapisana At", snapshot.saved_at])
     writer.writerow(["Status", snapshot.status or ""])
     writer.writerow([])
-    writer.writerow(["Node", "Question", "Answer"])
+    writer.writerow(["Węzeł", "Pytanie", "Odpowiedź"])
     for item in snapshot.answers or []:
         writer.writerow(
             [
@@ -1245,6 +1283,105 @@ def survey_snapshot_csv(request: HttpRequest, session_id: int, snapshot_id: int)
                 item.get("value", ""),
             ]
         )
+    return response
+
+
+def _set_docx_cell_text(cell, text: str, *, bold: bool = False, size: int = 10) -> None:
+    cell.text = ""
+    paragraph = cell.paragraphs[0]
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = paragraph.add_run(text)
+    run.bold = bold
+    run.font.size = Pt(size)
+
+
+@staff_required
+@require_GET
+def survey_snapshot_docx(request: HttpRequest, session_id: int, snapshot_id: int) -> HttpResponse:
+    snapshot = get_object_or_404(
+        SurveySubmissionSnapshot.objects.select_related("session", "session__customer", "session__template"),
+        pk=snapshot_id,
+        session_id=session_id,
+        session__is_archived=False,
+    )
+    session = snapshot.session
+    customer_name = _session_customer_name(session)
+    template_name = _session_template_name(session)
+    company_part = slugify(customer_name) or "customer"
+    template_part = slugify(template_name) or "template"
+    filename = f"{company_part}_{template_part}_session_{session.id}_version_{snapshot.version_number}.docx"
+
+    document = Document()
+    section = document.sections[0]
+    section.top_margin = Inches(0.5)
+    section.bottom_margin = Inches(0.5)
+    section.left_margin = Inches(0.65)
+    section.right_margin = Inches(0.65)
+
+    title = document.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title.add_run("ZAPISANO NOWĄ ANKIETĘ")
+    title_run.bold = True
+    title_run.font.size = Pt(18)
+
+    document.add_paragraph()
+
+    summary = document.add_table(rows=0, cols=2)
+    summary.alignment = WD_TABLE_ALIGNMENT.CENTER
+    summary.style = "Table Grid"
+    summary_rows = [
+        ("Klient", customer_name),
+        ("Szablon", template_name),
+        ("Typ ankiety", _survey_notification_origin_label(session)),
+        ("Status", snapshot.status or session.get_status_display()),
+        ("Data zapisu", timezone.localtime(snapshot.saved_at).strftime("%Y-%m-%d %H:%M:%S %Z")),
+    ]
+    for label, value in summary_rows:
+        row = summary.add_row().cells
+        _set_docx_cell_text(row[0], label, bold=True)
+        _set_docx_cell_text(row[1], value or "-")
+
+    document.add_paragraph()
+    answers_heading = document.add_paragraph()
+    answers_heading_run = answers_heading.add_run("Odpowiedzi")
+    answers_heading_run.bold = True
+    answers_heading_run.font.size = Pt(14)
+
+    for index, item in enumerate(snapshot.answers or [], start=1):
+        question_title = str(item.get("question_title", "")).strip() or f"Pytanie {index}"
+        question_type = str(item.get("question_type", "")).strip()
+        answer_value = str(item.get("value", "")).strip() or "-"
+        answer_parts = _split_structured_answer_parts(question_type, answer_value)
+
+        question_paragraph = document.add_paragraph()
+        question_paragraph.paragraph_format.space_before = Pt(8)
+        question_paragraph.paragraph_format.space_after = Pt(3)
+        question_run = question_paragraph.add_run(f"{index}. {question_title}")
+        question_run.bold = True
+        question_run.font.size = Pt(12)
+
+        if answer_parts:
+            for part in answer_parts:
+                answer_paragraph = document.add_paragraph(style=None)
+                answer_paragraph.paragraph_format.left_indent = Inches(0.25)
+                answer_paragraph.paragraph_format.space_after = Pt(1)
+                answer_run = answer_paragraph.add_run(part)
+                answer_run.font.size = Pt(10.5)
+        else:
+            answer_paragraph = document.add_paragraph()
+            answer_paragraph.paragraph_format.left_indent = Inches(0.25)
+            answer_run = answer_paragraph.add_run("-")
+            answer_run.font.size = Pt(10.5)
+
+    buffer = BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -1308,7 +1445,7 @@ def question_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("management-questions")
-    return render(request, "management/questions/form.html", {"form": form, "title": "Create Question"})
+    return render(request, "management/questions/form.html", {"form": form, "title": "Dodaj pytanie"})
 
 
 def _detach_question_for_live_templates(question: Question) -> bool:
@@ -1356,7 +1493,7 @@ def question_edit(request: HttpRequest, question_id: int) -> HttpResponse:
             _detach_question_for_live_templates(question)
             form.save()
         return redirect("management-questions")
-    return render(request, "management/questions/form.html", {"form": form, "title": "Edit Question"})
+    return render(request, "management/questions/form.html", {"form": form, "title": "Edytuj pytanie"})
 
 
 @staff_required
@@ -1454,7 +1591,7 @@ def template_copy(request: HttpRequest) -> HttpResponse:
         description = request.POST.get("description", "").strip()
 
         if not source_id:
-            messages.error(request, "Choose a source template to copy.")
+            messages.error(request, "Wybierz szablon ÅºrÃ³dÅowy do skopiowania.")
             return render(
                 request,
                 "management/templates/copy.html",
@@ -1465,7 +1602,7 @@ def template_copy(request: HttpRequest) -> HttpResponse:
         if source_template.nodes.filter(question__is_archived=True).exists():
             messages.error(
                 request,
-                "Source template contains archived questions. Update the source template before copying.",
+                "Szablon źródłowy zawiera zarchiwizowane pytania. Zaktualizuj go przed kopiowaniem.",
             )
             return render(
                 request,
@@ -1473,7 +1610,7 @@ def template_copy(request: HttpRequest) -> HttpResponse:
                 {"templates": templates, "initial_source": source_id},
             )
         if not name:
-            name = f"{source_template.name} (copy)"
+            name = f"{source_template.name} (kopia)"
 
         with transaction.atomic():
             new_template = SurveyTemplate.objects.create(
@@ -1517,7 +1654,7 @@ def template_copy(request: HttpRequest) -> HttpResponse:
             forced_start.next_node = node_map.get(start_target_old_id)
             forced_start.save(update_fields=["next_node"])
 
-        messages.success(request, f"Template copied: {new_template.name}")
+        messages.success(request, f"Szablon copied: {new_template.name}")
         return redirect("management-template-builder", template_id=new_template.id)
 
     return render(
@@ -1534,20 +1671,20 @@ def template_create(request: HttpRequest) -> HttpResponse:
         template = form.save()
         _ensure_forced_start_node(template)
         return redirect("management-template-builder", template_id=template.id)
-    return render(request, "management/templates/form.html", {"form": form, "title": "Create Template"})
+    return render(request, "management/templates/form.html", {"form": form, "title": "Dodaj szablon"})
 
 
 @staff_required
 def template_edit(request: HttpRequest, template_id: int) -> HttpResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        messages.error(request, "Template is live (assigned to surveys) and cannot be edited.")
+        messages.error(request, "Szablon jest aktywny i nie można go edytować.")
         return redirect("management-templates")
     form = SurveyTemplateForm(request.POST or None, instance=template)
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("management-template-builder", template_id=template.id)
-    return render(request, "management/templates/form.html", {"form": form, "title": "Edit Template"})
+    return render(request, "management/templates/form.html", {"form": form, "title": "Edytuj szablon"})
 
 
 @staff_required
@@ -1562,7 +1699,7 @@ def template_delete(request: HttpRequest, template_id: int) -> HttpResponse:
 def template_builder(request: HttpRequest, template_id: int) -> HttpResponse:
     template = get_object_or_404(SurveyTemplate.objects.select_related("start_node"), pk=template_id, is_archived=False)
     if _template_is_live(template):
-        messages.error(request, "Template is live (assigned to surveys). Builder is locked.")
+        messages.error(request, "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze.")
         return redirect("management-templates")
     _ensure_forced_start_node(template)
     nodes = list(template.nodes.select_related("question", "next_node", "yes_node", "no_node").all())
@@ -1681,7 +1818,7 @@ def template_demo_done(request: HttpRequest, template_id: int) -> HttpResponse:
 def template_builder_data(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     _ensure_forced_start_node(template)
     nodes = template.nodes.select_related("question", "next_node", "yes_node", "no_node")
     return JsonResponse(
@@ -1699,7 +1836,7 @@ def template_builder_data(request: HttpRequest, template_id: int) -> JsonRespons
 def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     _ensure_forced_start_node(template)
     question_id = request.POST.get("question_id")
     x = int(request.POST.get("x", 80))
@@ -1720,7 +1857,7 @@ def template_node_create(request: HttpRequest, template_id: int) -> JsonResponse
 def template_node_update(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     _ensure_forced_start_node(template)
     node = get_object_or_404(TemplateNode, pk=node_id, template=template)
 
@@ -1773,12 +1910,12 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
     if node.question.is_finishing:
         if node.question.question_type == Question.QuestionType.YES_NO:
             return JsonResponse(
-                {"ok": False, "error": "Finishing question cannot use Yes / No. Use Yes / No (no condition)."},
+                {"ok": False, "error": "Pytanie kończące nie może używać typu Tak / Nie. Użyj Tak / Nie (bez warunku)."},
                 status=400,
             )
         if node.next_node and not node.next_node.question.is_finishing:
             return JsonResponse(
-                {"ok": False, "error": "Finishing node can connect only to another finishing node."},
+                {"ok": False, "error": "Węzeł kończący może łączyć się tylko z innym węzłem końcowym."},
                 status=400,
             )
 
@@ -1811,10 +1948,10 @@ def template_node_update(request: HttpRequest, template_id: int, node_id: int) -
 def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     node = get_object_or_404(TemplateNode, pk=node_id, template=template)
     if node.is_forced_start:
-        return JsonResponse({"ok": False, "error": "Forced start node cannot be deleted."}, status=400)
+        return JsonResponse({"ok": False, "error": "Wymuszonego węzła startowego nie można usunąć."}, status=400)
 
     if template.start_node_id == node.id:
         template.start_node = None
@@ -1844,7 +1981,7 @@ def template_node_delete(request: HttpRequest, template_id: int, node_id: int) -
 def template_check_errors(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     _ensure_forced_start_node(template)
     errors = _validate_template_graph(template)
     if errors:
@@ -1857,7 +1994,7 @@ def template_check_errors(request: HttpRequest, template_id: int) -> JsonRespons
 def template_save_ready(request: HttpRequest, template_id: int) -> JsonResponse:
     template = get_object_or_404(SurveyTemplate, pk=template_id, is_archived=False)
     if _template_is_live(template):
-        return JsonResponse({"ok": False, "error": "Template is live and locked."}, status=403)
+        return JsonResponse({"ok": False, "error": "Ankieta jest NA ŻYWO, brak możliwości edycji w kreatorze."}, status=403)
     _ensure_forced_start_node(template)
     errors = _validate_template_graph(template)
     if errors:
@@ -2019,7 +2156,7 @@ class SurveyByTokenView(View):
                     session=session,
                     node=node,
                     form=form,
-                    consent_error="Przed zapisaniem ankiety należy zaakceptować wymagane zgody.",
+                    consent_error="Przed zapisaniem ankiety naleĹĽy zaakceptowaÄ‡ wymagane zgody.",
                     consent_state=consent_state,
                 )
 
@@ -2117,3 +2254,7 @@ def survey_thanks(request: HttpRequest, token: str) -> HttpResponse:
             status=403,
         )
     return render(request, "survey/thanks.html", {"session": session, "session_customer_name": _session_customer_name(session)})
+
+
+
+

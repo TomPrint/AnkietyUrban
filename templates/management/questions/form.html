@@ -19,13 +19,13 @@
 
       <div id="complex-builder-wrapper" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div class="mb-3 flex items-center justify-between">
-          <p class="text-sm font-semibold text-slate-700">Complex Items</p>
+          <p class="text-sm font-semibold text-slate-700">Elementy złożone</p>
           <button type="button" id="complex-add-item" class="rounded border border-slate-300 px-3 py-1 text-sm font-semibold">
-            + Add item
+            + Dodaj element
           </button>
         </div>
         <p class="mb-3 text-xs text-slate-500">
-          Add sub-questions in order. Each item is required in survey.
+          Dodawaj podpytania po kolei. Każdy element jest wymagany w ankiecie.
         </p>
         {% if form.complex_items_json.errors %}
           <div class="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -37,8 +37,8 @@
       </div>
 
       <div class="flex gap-3">
-        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Save</button>
-        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-questions' %}">Cancel</a>
+        <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Zapisz</button>
+        <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-questions' %}">Anuluj</a>
       </div>
     </form>
   </section>
@@ -58,27 +58,27 @@
       row.dataset.index = String(index);
 
       const top = createEl("div", "mb-2 flex items-center justify-between");
-      top.appendChild(createEl("p", "text-xs font-semibold uppercase tracking-wide text-slate-500", `Item ${index + 1}`));
-      const removeBtn = createEl("button", "rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700", "Remove");
+      top.appendChild(createEl("p", "text-xs font-semibold uppercase tracking-wide text-slate-500", `Element ${index + 1}`));
+      const removeBtn = createEl("button", "rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700", "Usuń");
       removeBtn.type = "button";
       removeBtn.dataset.action = "remove";
       top.appendChild(removeBtn);
       row.appendChild(top);
 
-      const typeLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Type");
+      const typeLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Typ");
       row.appendChild(typeLabel);
 
       const typeSelect = createEl("select", "mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm");
       typeSelect.dataset.field = "type";
       [
-        { value: "open", label: "Open" },
-        { value: "yes_no", label: "Yes / No" },
-        { value: "yes_no_next", label: "Yes / No (no condition)" },
-        { value: "multi_choice", label: "Multi-many" },
-        { value: "multi_one", label: "Multi-one" },
-        { value: "open_numeric", label: "Numeric" },
-        { value: "open_with_list", label: "Adress List" },
-        { value: "open_number_list", label: "Checkbox/Number" },
+        { value: "open", label: "Otwarte" },
+        { value: "yes_no", label: "Tak / Nie" },
+        { value: "yes_no_next", label: "Tak / Nie (bez warunku)" },
+        { value: "multi_choice", label: "Wielokrotny wybór" },
+        { value: "multi_one", label: "Jednokrotny wybór" },
+        { value: "open_numeric", label: "Liczbowe" },
+        { value: "open_with_list", label: "Lista adresów" },
+        { value: "open_number_list", label: "Checkbox/Liczba" },
       ].forEach((opt) => {
         const option = document.createElement("option");
         option.value = opt.value;
@@ -88,24 +88,24 @@
       });
       row.appendChild(typeSelect);
 
-      const qLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Question text");
+      const qLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Treść pytania");
       row.appendChild(qLabel);
 
       const qInput = createEl("input", "mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm");
       qInput.type = "text";
       qInput.dataset.field = "label";
       qInput.value = item.label || "";
-      qInput.placeholder = "Enter sub-question text";
+      qInput.placeholder = "Wpisz treść podpytania";
       row.appendChild(qInput);
 
-      const showIfLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Show if");
+      const showIfLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Pokaż, jeśli");
       row.appendChild(showIfLabel);
       const showIfSelect = createEl("select", "mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm");
       showIfSelect.dataset.field = "show_if";
       [
-        { value: "any", label: "Always" },
-        { value: "yes", label: "Yes" },
-        { value: "no", label: "No" },
+        { value: "any", label: "Zawsze" },
+        { value: "yes", label: "Tak" },
+        { value: "no", label: "Nie" },
       ].forEach((opt) => {
         const option = document.createElement("option");
         option.value = opt.value;
@@ -116,11 +116,11 @@
       row.appendChild(showIfSelect);
 
       const optionsWrap = createEl("div", "complex-options-wrap");
-      const oLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Options (one per line)");
+      const oLabel = createEl("label", "mb-1 block text-xs font-semibold text-slate-600", "Opcje (jedna w wierszu)");
       const oText = createEl("textarea", "w-full rounded border border-slate-300 px-3 py-2 text-sm");
       oText.rows = 4;
       oText.dataset.field = "options";
-      oText.placeholder = "Option A\nOption B\nOption C";
+      oText.placeholder = "Opcja A\nOpcja B\nOpcja C";
       oText.value = (item.options || []).join("\n");
       optionsWrap.appendChild(oLabel);
       optionsWrap.appendChild(oText);
@@ -228,7 +228,7 @@
           if (type.value === "complex") {
             if (!latestItems.length) {
               if (clientError) {
-                clientError.textContent = "Add at least one complex item.";
+                clientError.textContent = "Dodaj co najmniej jeden element złożony.";
                 clientError.classList.remove("hidden");
               }
               hiddenField.value = "[]";
@@ -239,7 +239,7 @@
               const item = latestItems[i];
               if (!item.label) {
                 if (clientError) {
-                  clientError.textContent = `Item ${i + 1}: question text is required.`;
+                  clientError.textContent = `Element ${i + 1}: treść pytania jest wymagana.`;
                   clientError.classList.remove("hidden");
                 }
                 event.preventDefault();
@@ -247,7 +247,7 @@
               }
               if ((item.type === "multi_choice" || item.type === "multi_one" || item.type === "open_number_list") && !item.options.length) {
                 if (clientError) {
-                  clientError.textContent = `Item ${i + 1}: add at least one option.`;
+                  clientError.textContent = `Element ${i + 1}: dodaj co najmniej jedną opcję.`;
                   clientError.classList.remove("hidden");
                 }
                 event.preventDefault();
@@ -269,3 +269,5 @@
   })();
 </script>
 {% endblock %}
+
+

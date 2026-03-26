@@ -1,4 +1,4 @@
-from django import forms
+﻿from django import forms
 
 from .models import Customer
 
@@ -10,7 +10,16 @@ class CustomerForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        labels = {
+            "company_name": "Nazwa firmy",
+            "address": "Adres",
+            "contact_person": "Osoba kontaktowa",
+            "email": "E-mail",
+            "telephone": "Telefon",
+        }
+        for name, field in self.fields.items():
+            if name in labels:
+                field.label = labels[name]
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
 
     def clean_company_name(self):
@@ -21,6 +30,5 @@ class CustomerForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             dupe_qs = dupe_qs.exclude(pk=self.instance.pk)
         if dupe_qs.exists():
-            raise forms.ValidationError("Customer with this name already exists.")
+            raise forms.ValidationError("Klient o tej nazwie już istnieje.")
         return company_name
-

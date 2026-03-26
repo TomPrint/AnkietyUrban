@@ -13,15 +13,15 @@ staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
 class StaffAuthenticationForm(AuthenticationForm):
     error_messages = {
         **AuthenticationForm.error_messages,
-        "invalid_login": "Incorrect username or password.",
-        "inactive": "This account is inactive. Contact administrator.",
+        "invalid_login": "Nieprawidłowy login lub hasło.",
+        "inactive": "To konto jest nieaktywne. Skontaktuj się z administratorem.",
     }
 
     def confirm_login_allowed(self, user):
         super().confirm_login_allowed(user)
         if not user.is_staff:
             raise ValidationError(
-                "Your account is restricted from management portal.",
+                "Twoje konto nie ma dostępu do portalu zarządzania.",
                 code="not_staff",
             )
 
@@ -39,3 +39,5 @@ class StaffLoginView(LoginView):
             logout(request)
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+
+

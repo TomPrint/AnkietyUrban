@@ -1,4 +1,4 @@
-import json
+﻿import json
 from django import forms
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
@@ -212,7 +212,7 @@ class DynamicQuestionForm(forms.Form):
     def _build_complex_fields(self):
         for idx, item in enumerate(self.question.complex_items or []):
             item_type = item.get("type")
-            item_label = item.get("label", f"Item {idx + 1}")
+            item_label = item.get("label", f"Element {idx + 1}")
             field_name = f"complex_{idx}"
             item_required = bool(item.get("required", True))
             show_if = str(item.get("show_if", "any")).strip().lower()
@@ -388,7 +388,7 @@ class DynamicQuestionForm(forms.Form):
                 self.add_error(field_name, "Nieprawidłowy format checkbox/liczba.")
                 continue
             if not isinstance(payload, list):
-                self.add_error(field_name, "Nieprawidłowy format checkbox/liczba.")
+                self.add_error(field_name, "Nieprawidłowyformat checkbox/liczba.")
                 continue
             allowed_options = {str(o).strip() for o in (self._complex_item_options_by_field.get(field_name) or []) if str(o).strip()}
             normalized = []
@@ -482,7 +482,7 @@ class DynamicQuestionForm(forms.Form):
             payload.append(
                 {
                     "type": item.get("type"),
-                    "label": item.get("label", f"Item {idx + 1}"),
+                    "label": item.get("label", f"Element {idx + 1}"),
                     "options": item.get("options", []),
                     "value": value,
                 }
@@ -529,13 +529,13 @@ class QuestionManageForm(forms.ModelForm):
     options_text = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 7}),
-        help_text="For Multi-many / Multi-one / Checkbox-Number: one option per line.",
-        label="Options",
+        help_text="Dla wielokrotnego wyboru / jednokrotnego wyboru / checkbox-liczba: jedna opcja w wierszu.",
+        label="Opcje",
     )
     complex_items_json = forms.CharField(
         required=False,
         widget=forms.HiddenInput(),
-        label="Complex Items",
+        label="Elementy złożone",
     )
 
     class Meta:
@@ -553,22 +553,52 @@ class QuestionManageForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        labels = {
+            "title": "Tytuł",
+            "question_type": "Typ pytania",
+            "is_finishing": "Pytanie końcowe",
+            "help_text": "Tekst pomocniczy",
+            "source_url": "Promocyjny URL",
+            "promotional_text": "Tekst promocyjny",
+            "options_text": "Opcje",
+            "complex_items_json": "Elementy złożone",
+        }
+        help_texts = {
+            "title": "",
+            "question_type": "",
+            "is_finishing": "Użyj tego pytania jako węzła końcowego w kreatorze szablonów.",
+            "help_text": "",
+            "source_url": "Opcjonalny zewnętrzny adres URL wyświetlany pod pytaniem.",
+            "promotional_text": "Opcjonalny krótki tekst wyświetlany obok linku w ankiecie.",
+            "options_text": "Dla wielokrotnego wyboru / jednokrotnego wyboru / checkbox-liczba: jedna opcja w wierszu.",
+            "complex_items_json": "",
+        }
+        question_type_field = self.fields["question_type"]
+        question_type_field.choices = [
+            ("", "---------"),
+            (Question.QuestionType.YES_NO, "Tak/Nie"),
+            (Question.QuestionType.YES_NO_NEXT, "Tak/Nie (bez warunku)"),
+            (Question.QuestionType.MULTI_CHOICE, "Wielokrotny wyb" + chr(243) + "r"),
+            (Question.QuestionType.MULTI_ONE, "Jednokrotny wyb" + chr(243) + "r"),
+            (Question.QuestionType.OPEN, "Otwarte"),
+            (Question.QuestionType.OPEN_WITH_LIST, "Lista adres" + chr(243) + "w"),
+            (Question.QuestionType.OPEN_NUMBER_LIST, "Checkbox/Liczba"),
+            (Question.QuestionType.OPEN_NUMERIC, "Liczbowe"),
+            (Question.QuestionType.COMPLEX, "Z" + chr(322) + "o" + chr(380) + "one"),
+        ]
+        for name, field in self.fields.items():
+            if name in labels:
+                field.label = labels[name]
+            if name in help_texts:
+                field.help_text = help_texts[name]
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
             else:
                 field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
-        self.fields["is_finishing"].label = "Finishing question"
-        self.fields["is_finishing"].help_text = "Use this question as a finishing-type node in template builder."
-        self.fields["source_url"].label = "Promotional URL"
-        self.fields["source_url"].help_text = "Optional external URL shown under this question."
-        self.fields["promotional_text"].label = "Promotional Text"
-        self.fields["promotional_text"].help_text = "Optional short text shown next to the link in survey."
         self.initial.setdefault("complex_items_json", "[]")
         if self.instance and self.instance.pk:
             self.initial["options_text"] = "\n".join(self.instance.choices.values_list("label", flat=True))
             self.initial["complex_items_json"] = json.dumps(self.instance.complex_items or [])
-
     def clean(self):
         cleaned = super().clean()
         title = (cleaned.get("title") or "").strip()
@@ -580,25 +610,25 @@ class QuestionManageForm(forms.ModelForm):
             if self.instance and self.instance.pk:
                 dupe_qs = dupe_qs.exclude(pk=self.instance.pk)
             if dupe_qs.exists():
-                self.add_error("title", "Question with this name already exists.")
+                self.add_error("title", "Pytanie o tej nazwie już istnieje.")
         if is_finishing and question_type == Question.QuestionType.YES_NO:
-            self.add_error("question_type", "Finishing question cannot use Yes / No. Use Yes / No (no condition).")
+            self.add_error("question_type", "Pytanie kończące nie może używać typu Tak / Nie. Użyj Tak / Nie (bez warunku).")
         if question_type in (Question.QuestionType.MULTI_CHOICE, Question.QuestionType.MULTI_ONE, Question.QuestionType.OPEN_NUMBER_LIST) and not options:
-            self.add_error("options_text", "This question type needs at least one option.")
+            self.add_error("options_text", "Ten typ pytania wymaga co najmniej jednej opcji.")
         if question_type == Question.QuestionType.COMPLEX:
             raw_json = cleaned.get("complex_items_json", "").strip() or "[]"
             try:
                 items = json.loads(raw_json)
             except json.JSONDecodeError:
-                self.add_error("complex_items_json", "Invalid complex items data.")
+                self.add_error("complex_items_json", "Nieprawidłowe dane elementów złożonych.")
                 items = []
             if not isinstance(items, list):
-                self.add_error("complex_items_json", "Complex items must be a list.")
+                self.add_error("complex_items_json", "Elementy złożone muszą być listą.")
                 items = []
             parsed = []
             for idx, item in enumerate(items, start=1):
                 if not isinstance(item, dict):
-                    self.add_error("complex_items_json", f"Item {idx}: invalid format.")
+                    self.add_error("complex_items_json", f"Element {idx}: nieprawidłowy format.")
                     continue
                 item_type = str(item.get("type", "")).strip().lower()
                 label = str(item.get("label", "")).strip()
@@ -615,25 +645,25 @@ class QuestionManageForm(forms.ModelForm):
                 ):
                     self.add_error(
                         "complex_items_json",
-                        f"Item {idx}: invalid type '{item_type}'.",
+                        f"Element {idx}: nieprawidłowy typ '{item_type}'.",
                     )
                     continue
                 if not label:
-                    self.add_error("complex_items_json", f"Item {idx}: missing question label.")
+                    self.add_error("complex_items_json", f"Element {idx}: brak etykiety pytania.")
                     continue
                 if show_if not in ("any", "yes", "no"):
-                    self.add_error("complex_items_json", f"Item {idx}: invalid show_if value.")
+                    self.add_error("complex_items_json", f"Element {idx}: nieprawidłowa wartość show_if.")
                     continue
                 if item_type == Question.QuestionType.YES_NO:
                     show_if = "any"
                 if item_type in (Question.QuestionType.MULTI_CHOICE, Question.QuestionType.MULTI_ONE, Question.QuestionType.OPEN_NUMBER_LIST):
                     raw_options = item.get("options", [])
                     if not isinstance(raw_options, list):
-                        self.add_error("complex_items_json", f"Item {idx}: options must be a list.")
+                        self.add_error("complex_items_json", f"Element {idx}: opcje muszą być listą.")
                         continue
                     item_options = [str(opt).strip() for opt in raw_options if str(opt).strip()]
                     if not item_options:
-                        self.add_error("complex_items_json", f"Item {idx}: add at least one option.")
+                        self.add_error("complex_items_json", f"Element {idx}: dodaj co najmniej jedną opcję.")
                         continue
                     parsed.append(
                         {
@@ -648,7 +678,7 @@ class QuestionManageForm(forms.ModelForm):
                     if item_type == Question.QuestionType.OPEN_WITH_LIST:
                         raw_options = item.get("options", [])
                         if not isinstance(raw_options, list):
-                            self.add_error("complex_items_json", f"Item {idx}: options must be a list.")
+                            self.add_error("complex_items_json", f"Element {idx}: opcje muszą być listą.")
                             continue
                         item_options = [str(opt).strip() for opt in raw_options if str(opt).strip()]
                     parsed.append({"type": item_type, "label": label, "options": item_options, "show_if": show_if})
@@ -660,13 +690,13 @@ class QuestionManageForm(forms.ModelForm):
             )
             conditional_count = sum(1 for item in parsed if str(item.get("show_if", "any")).strip().lower() in ("yes", "no"))
             if condition_count > 1:
-                self.add_error("complex_items_json", "Complex question can contain only one conditional Yes / No item.")
+                self.add_error("complex_items_json", "Pytanie złożone może zawierać tylko jeden warunkowy element Tak / Nie.")
             if conditional_count and condition_count == 0:
-                self.add_error("complex_items_json", "Items with Show if Yes/No require one Yes / No item in complex question.")
+                self.add_error("complex_items_json", "Elementy z ustawieniem „Pokaż, jeśli Tak/Nie” wymagają jednego elementu Tak / Nie w pytaniu złożonym.")
             if not parsed:
                 self.add_error(
                     "complex_items_json",
-                    "Complex question needs at least one valid sub-question.",
+                    "Pytanie złożone wymaga co najmniej jednego poprawnego podpytania.",
                 )
             cleaned["parsed_complex_items"] = parsed
         else:
@@ -704,6 +734,8 @@ class SurveyTemplateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["name"].label = "Nazwa"
+        self.fields["description"].label = "Opis"
         for field in self.fields.values():
             field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
 
@@ -715,18 +747,18 @@ class SurveyTemplateForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             dupe_qs = dupe_qs.exclude(pk=self.instance.pk)
         if dupe_qs.exists():
-            raise forms.ValidationError("Template with this name already exists.")
+            raise forms.ValidationError("Szablon o tej nazwie już istnieje.")
         return name
 
 
 class SurveyAssignmentForm(forms.ModelForm):
     is_internal = forms.TypedChoiceField(
-        choices=(("true", "Internal"), ("false", "External")),
+        choices=(("true", "Wewnętrzna"), ("false", "Zewnętrzna")),
         coerce=lambda value: str(value).lower() == "true",
         empty_value=True,
         initial="true",
         required=True,
-        label="Survey Type",
+        label="Typ ankiety",
     )
 
     class Meta:
@@ -740,7 +772,7 @@ class SurveyAssignmentForm(forms.ModelForm):
             status=SurveyTemplate.Status.READY,
             is_archived=False,
         ).order_by("name")
-        self.fields["is_internal"].choices = (("true", "Internal"), ("false", "External"))
+        self.fields["is_internal"].choices = (("true", "Wewnętrzna"), ("false", "Zewnętrzna"))
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
@@ -752,13 +784,13 @@ class UserManageForm(forms.ModelForm):
     password = forms.CharField(
         required=False,
         widget=forms.PasswordInput,
-        help_text="Set a password for new users. Leave blank on edit to keep current password.",
+        help_text="Ustaw hasło dla nowych użytkowników. Pozostaw puste przy edycji, aby zachować obecne hasło.",
     )
     password_confirm = forms.CharField(
         required=False,
         widget=forms.PasswordInput,
-        label="Confirm password",
-        help_text="Repeat the same password.",
+        label="Potwierdź hasło",
+        help_text="Powtórz to samo hasło.",
     )
 
     class Meta:
@@ -767,7 +799,31 @@ class UserManageForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        labels = {
+            "username": "Login",
+            "first_name": "Imi" + chr(281),
+            "last_name": "Nazwisko",
+            "email": "Adres e-mail",
+            "is_staff": "Administrator",
+            "is_active": "Aktywny",
+            "password": "Has" + chr(322) + "o",
+            "password_confirm": "Potwierd" + chr(378) + " has" + chr(322) + "o",
+        }
+        help_texts = {
+            "username": "Wymagane. Maksymalnie 150 znak" + chr(243) + "w. Dozwolone litery, cyfry oraz znaki @/./+/-/_.",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "is_staff": "Okre" + chr(347) + "la, czy u" + chr(380) + "ytkownik ma dost" + chr(281) + "p do panelu zarz" + chr(261) + "dzania.",
+            "is_active": "Okre" + chr(347) + "la, czy konto u" + chr(380) + "ytkownika jest aktywne.",
+            "password": "Ustaw has" + chr(322) + "o dla nowych u" + chr(380) + "ytkownik" + chr(243) + "w. Pozostaw puste przy edycji, aby zachowa" + chr(263) + " obecne has" + chr(322) + "o.",
+            "password_confirm": "Powt" + chr(243) + "rz to samo has" + chr(322) + "o.",
+        }
         for name, field in self.fields.items():
+            if name in labels:
+                field.label = labels[name]
+            if name in help_texts:
+                field.help_text = help_texts[name]
             if name == "password":
                 field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
             elif isinstance(field.widget, forms.CheckboxInput):
@@ -778,7 +834,7 @@ class UserManageForm(forms.ModelForm):
     def clean_password(self):
         password = self.cleaned_data.get("password", "")
         if not self.instance.pk and not password:
-            raise forms.ValidationError("Password is required for new users.")
+            raise forms.ValidationError("Hasło jest wymagane dla nowych użytkowników.")
         return password
 
     def clean(self):
@@ -789,10 +845,10 @@ class UserManageForm(forms.ModelForm):
         if self.instance.pk:
             # On edit, both fields must be provided together to change password.
             if bool(password) ^ bool(password_confirm):
-                self.add_error("password_confirm", "Provide both password fields to change password.")
+                self.add_error("password_confirm", "Aby zmienić hasło, uzupełnij oba pola hasła.")
         if password or password_confirm:
             if password != password_confirm:
-                self.add_error("password_confirm", "Passwords do not match.")
+                self.add_error("password_confirm", "Hasła nie są zgodne.")
         return cleaned
 
     def save(self, commit=True):
@@ -803,3 +859,5 @@ class UserManageForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+

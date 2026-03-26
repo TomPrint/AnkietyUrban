@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 
-{% block title %}Login | Ankiety Urban{% endblock %}
+{% block title %}Logowanie | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="uv-login-wrap relative min-h-screen overflow-hidden px-4 py-10 sm:px-6">
@@ -12,7 +12,7 @@
   </section>
 
   <section class="mx-auto mt-10 w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl">
-    <h2 class="text-xl font-semibold">Sign in</h2>
+    <h2 class="text-xl font-semibold">Zaloguj</h2>
     <form method="post" class="mt-6 space-y-5">
       {% csrf_token %}
       {% if form.non_field_errors %}
@@ -23,21 +23,21 @@
         </div>
       {% endif %}
       <div>
-        <label class="mb-1 block text-sm font-medium" for="id_username">Username</label>
+        <label class="mb-1 block text-sm font-medium" for="id_username">Login</label>
         <input class="w-full rounded-lg border border-slate-300 px-3 py-2" type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" required />
         {% if form.username.errors %}
           <p class="mt-1 text-sm text-red-700">{{ form.username.errors|join:", " }}</p>
         {% endif %}
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium" for="id_password">Password</label>
+        <label class="mb-1 block text-sm font-medium" for="id_password">Hasło</label>
         <input class="w-full rounded-lg border border-slate-300 px-3 py-2" type="password" name="password" id="id_password" required />
         {% if form.password.errors %}
           <p class="mt-1 text-sm text-red-700">{{ form.password.errors|join:", " }}</p>
         {% endif %}
       </div>
       <button class="w-full rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700" type="submit">
-        Login
+        Zaloguj się
       </button>
     </form>
   </section>
@@ -114,3 +114,5 @@
   }
 </style>
 {% endblock %}
+
+

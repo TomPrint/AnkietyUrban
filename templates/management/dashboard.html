@@ -1,49 +1,49 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | Ankiety Urban{% endblock %}
+{% block title %}Panel | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-lg md:flex-row md:items-center md:justify-between">
     <div>
       <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Ankiety Urban</p>
-      <h1 class="mt-2 text-3xl font-bold">Management Dashboard</h1>
+      <h1 class="mt-2 text-3xl font-bold">Panel zarządzania</h1>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-questions' %}">Question Bank</a>
-      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-templates' %}">Template Builder</a>
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-questions' %}">Baza pytań</a>
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'management-templates' %}">Kreator szablonów</a>
     </div>
   </header>
 
   <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Customers</p>
+      <p class="text-sm text-slate-500">Klienci</p>
       <p class="mt-2 text-3xl font-bold">{{ customers_count }}</p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Question Bank</p>
+      <p class="text-sm text-slate-500">Baza pytań</p>
       <p class="mt-2 text-3xl font-bold">{{ questions_count }}</p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Templates</p>
+      <p class="text-sm text-slate-500">Szablony</p>
       <p class="mt-2 text-3xl font-bold">{{ templates_count }}</p>
     </article>
   </section>
 
   <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Generated Links</p>
+      <p class="text-sm text-slate-500">Wygenerowane linki</p>
       <p class="mt-2 text-3xl font-bold text-amber-600">{{ generated_links_count }}</p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Open</p>
+      <p class="text-sm text-slate-500">Otwarte</p>
       <p class="mt-2 text-3xl font-bold text-emerald-700">
         {{ sessions_open }}
         <span class="ml-1 align-middle text-base font-semibold text-emerald-600">({{ sessions_open_percent }}%)</span>
       </p>
     </article>
     <article class="rounded-xl bg-white p-5 shadow">
-      <p class="text-sm text-slate-500">Closed</p>
+      <p class="text-sm text-slate-500">Zamknięte</p>
       <p class="mt-2 text-3xl font-bold text-slate-800">
         {{ sessions_closed }}
         <span class="ml-1 align-middle text-base font-semibold text-slate-700">({{ sessions_closed_percent }}%)</span>
@@ -52,15 +52,15 @@
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Recent survey sessions</h2>
+    <h2 class="text-xl font-semibold">Ostatnie sesje ankiet</h2>
     <div class="mt-4 overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
-            <th class="py-2">Customer</th>
-            <th class="py-2">Template</th>
+            <th class="py-2">Klient</th>
+            <th class="py-2">Szablon</th>
             <th class="py-2">Status</th>
-            <th class="py-2">Closed</th>
+            <th class="py-2">Zamknięte</th>
           </tr>
         </thead>
         <tbody>
@@ -68,7 +68,7 @@
           <tr class="border-t border-slate-200">
             <td class="py-2">{{ session.customer.company_name }}</td>
             <td class="py-2">{{ session.template.name }}</td>
-            <td class="py-2">{% if session.status == 'saved_again' %}Closed Again{% else %}{{ session.get_status_display }}{% endif %}</td>
+            <td class="py-2">{% if session.status == 'saved_again' %}Zapisana ponownie{% else %}{{ session.get_status_display }}{% endif %}</td>
             <td class="py-2">
               {% if session.first_saved_at %}
                 {{ session.saved_again_count|add:"1" }}
@@ -78,7 +78,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td class="py-4 text-slate-500" colspan="4">No sessions yet.</td></tr>
+          <tr><td class="py-4 text-slate-500" colspan="4">Brak sesji.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -86,3 +86,5 @@
   </section>
 </main>
 {% endblock %}
+
+
