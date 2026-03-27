@@ -1,15 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Szczegóły pytania | Ankiety Urban{% endblock %}
+{% block title %}Szczeg&oacute;ły pytania | Ankiety Urban{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczegóły pytania</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczeg&oacute;ły pytania</p>
       <h1 class="mt-2 text-3xl font-bold">{{ question.title }}</h1>
       <p class="mt-2 text-sm text-slate-600">
-        Typ: <span class="font-semibold">{{ question.get_question_type_display }}</span>
+        Typ:
+        <span class="font-semibold">
+          {% if question.question_type == 'yes_no' %}
+            Tak/Nie
+          {% elif question.question_type == 'yes_no_next' %}
+            Tak/Nie (bez warunku)
+          {% elif question.question_type == 'multi_choice' %}
+            Wielokrotny wyb&oacute;r
+          {% elif question.question_type == 'multi_one' %}
+            Jednokrotny wyb&oacute;r
+          {% elif question.question_type == 'open' %}
+            Otwarte
+          {% elif question.question_type == 'open_with_list' %}
+            Lista adres&oacute;w
+          {% elif question.question_type == 'open_number_list' %}
+            Checkbox/Liczba
+          {% elif question.question_type == 'open_numeric' %}
+            Liczbowe
+          {% elif question.question_type == 'complex' %}
+            Złożone
+          {% else %}
+            {{ question.get_question_type_display }}
+          {% endif %}
+        </span>
       </p>
       {% if question.source_url %}
         <p class="mt-2 text-sm">
@@ -33,11 +56,11 @@
                 <span class="font-semibold">
                   {% if item.type == 'yes_no' %}Tak / Nie
                   {% elif item.type == 'yes_no_next' %}Tak / Nie (bez warunku)
-                  {% elif item.type == 'multi_choice' %}Multi-wiele
-                  {% elif item.type == 'multi_one' %}Multi-jeden
-                  {% elif item.type == 'open_with_list' %}Lista adresów
+                  {% elif item.type == 'multi_choice' %}Wielokrotny wyb&oacute;r
+                  {% elif item.type == 'multi_one' %}Jednokrotny wyb&oacute;r
+                  {% elif item.type == 'open_with_list' %}Lista adres&oacute;w
                   {% elif item.type == 'open_number_list' %}Checkbox / Liczba
-                  {% elif item.type == 'open_numeric' %}Liczba
+                  {% elif item.type == 'open_numeric' %}Liczbowe
                   {% elif item.type == 'open' %}Pytanie otwarte
                   {% elif item.type == 'complex' %}Złożone
                   {% else %}{{ item.type }}
@@ -54,10 +77,10 @@
         </div>
       {% endif %}
     </div>
-    <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-questions' %}">Powrót do pytań</a>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'management-question-edit' question.id %}">Edytuj</a>
-    </div>
+            <div class="flex gap-3">
+                <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold whitespace-nowrap" href="{% url 'management-questions' %}">Lista pytań</a>
+                <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold whitespace-nowrap" href="{% url 'management-question-edit' question.id %}">Edytuj</a>
+            </div>
   </header>
 
   <section class="mt-8 grid gap-4 sm:grid-cols-3">
@@ -76,27 +99,32 @@
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Przypisane do szablonów</h2>
+    <h2 class="text-xl font-semibold">Przypisane do szablon&oacute;w</h2>
     <div class="mt-4 overflow-x-auto">
-      <table class="min-w-full text-left text-sm">
+      <table class="uv-data-table min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
             <th class="py-2">Szablon</th>
             <th class="py-2">Status</th>
-            <th class="py-2">Akcje</th>
           </tr>
         </thead>
         <tbody>
           {% for t in templates %}
           <tr class="border-t border-slate-200">
             <td class="py-2">{{ t.name }}</td>
-            <td class="py-2">{{ t.get_status_display }}</td>
             <td class="py-2">
-              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-template-builder' t.id %}">Otwórz kreator</a>
+              {% if t.status == 'ready' %}
+                <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Gotowy</span>
+              {% else %}
+                <span class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Roboczy</span>
+              {% endif %}
+              {% if t.live_sessions_count %}
+                <span class="ml-2 rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Na &#379;ywo</span>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="3" class="py-4 text-slate-500">To pytanie nie jest jeszcze przypisane do żadnego szablonu.</td></tr>
+          <tr><td colspan="2" class="py-4 text-slate-500">To pytanie nie jest jeszcze przypisane do &#380;adnego szablonu.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -104,10 +132,10 @@
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Sesje ankiet używające tego pytania</h2>
+    <h2 class="text-xl font-semibold">Sesje ankiet u&#380;ywające tego pytania</h2>
     <p class="mt-2 text-sm text-slate-500">Ostatnie 50 sesji.</p>
     <div class="mt-4 overflow-x-auto">
-      <table class="min-w-full text-left text-sm">
+      <table class="uv-data-table min-w-full text-left text-sm">
         <thead class="text-slate-500">
           <tr>
             <th class="py-2">Klient</th>
@@ -133,7 +161,7 @@
             <td class="py-2">{{ s.updated_at }}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="py-4 text-slate-500">Żadna sesja ankiety nie używa jeszcze tego pytania.</td></tr>
+          <tr><td colspan="5" class="py-4 text-slate-500">&#379;adna sesja ankiety nie u&#380;ywa jeszcze tego pytania.</td></tr>
           {% endfor %}
         </tbody>
       </table>

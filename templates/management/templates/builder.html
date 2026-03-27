@@ -647,6 +647,18 @@
           return;
         }
       }
+      if (target && target.is_finishing_question && hasIncomingFromOtherNode(targetId, source.id)) {
+        connectMode = null;
+        updateConnectStatus();
+        showValidationErrors([
+          source.is_finishing_question
+            ? `Węzeł #${targetId} jest już w łańcuchu pytań końcowych i może mieć tylko jedno wejście od poprzedniego pytania końcowego.`
+            : `Węzeł #${targetId} należy już do łańcucha pytań końcowych i nie może przyjmować dodatkowych wejść z pytań zwykłych.`,
+        ]);
+        showToast("Połączenie zablokowane", "error");
+        render();
+        return;
+      }
       if (hasIncomingFromOtherNode(targetId, source.id)) {
         connectMode = null;
         updateConnectStatus();
@@ -703,16 +715,32 @@
     function hasIncomingFromOtherNode(targetId, sourceId) {
       const targetNum = Number(targetId);
       const targetNode = nodes.get(targetNum);
+      const sourceNode = nodes.get(Number(sourceId));
       if (targetNode && targetNode.is_finishing_question) {
-        return false;
+        let incomingFromFinishing = 0;
+        let incomingFromOrdinary = 0;
+        for (const n of nodes.values()) {
+          if (n.id === Number(sourceId)) continue;
+          if (Number(n.next_id) !== targetNum && Number(n.yes_id) !== targetNum && Number(n.no_id) !== targetNum) continue;
+          if (n.is_finishing_question) {
+            incomingFromFinishing += 1;
+          } else {
+            incomingFromOrdinary += 1;
+          }
+        }
+        if (sourceNode && sourceNode.is_finishing_question) {
+          return incomingFromFinishing + incomingFromOrdinary >= 1;
+        }
+        return incomingFromFinishing >= 1;
       }
+      let incomingCount = 0;
       for (const n of nodes.values()) {
         if (n.id === Number(sourceId)) continue;
         if (Number(n.next_id) === targetNum || Number(n.yes_id) === targetNum || Number(n.no_id) === targetNum) {
-          return true;
+          incomingCount += 1;
         }
       }
-      return false;
+      return incomingCount >= 1;
     }
 
     function fillInspektor() {

@@ -37,9 +37,10 @@ h6,
 
 .uv-nav-link {
   color: var(--uv-navy);
-  font-family: "Michroma", sans-serif;
+  font-family: "Public Sans", sans-serif;
+  font-weight: 500;
   font-size: 0.7rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
@@ -203,6 +204,32 @@ a[role="button"].bg-slate-900 {
 
 .text-blue-700 {
   color: var(--uv-red) !important;
+}
+
+.uv-data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.uv-data-table thead th {
+  padding: 0.6rem 0.7rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.uv-data-table tbody td {
+  padding: 0.7rem 0.7rem;
+  vertical-align: top;
+}
+
+@media (max-width: 767px) {
+  .uv-data-table thead th {
+    padding: 0.85rem 1rem;
+  }
+
+  .uv-data-table tbody td {
+    padding: 0.95rem 1rem;
+  }
 }
 
 .bg-slate-100,

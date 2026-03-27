@@ -265,6 +265,22 @@ def _validate_template_graph(template: SurveyTemplate):
                     f"Węzeł #{n.id}: pytanie kończące może wskazywać tylko na węzeł końcowy."
                 )
 
+            incoming_nodes = [
+                src
+                for src in nodes
+                if src.id != n.id and (src.next_node_id == n.id or src.yes_node_id == n.id or src.no_node_id == n.id)
+            ]
+            finishing_incoming = [src for src in incoming_nodes if src.question.is_finishing]
+            ordinary_incoming = [src for src in incoming_nodes if not src.question.is_finishing]
+            if finishing_incoming and ordinary_incoming:
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie kończące nie może jednocześnie przyjmować wejść od pytań zwykłych i końcowych."
+                )
+            if len(finishing_incoming) > 1:
+                errors.append(
+                    f"Węzeł #{n.id}: pytanie kończące może mieć najwyżej jedno wejście od innego pytania kończącego."
+                )
+
     reachable = set()
     stack = [start.id]
     while stack:
@@ -431,7 +447,20 @@ def _validate_target_node(template: SurveyTemplate, node_id: str | None, source_
     )
     if source_node is not None:
         incoming_qs = incoming_qs.exclude(pk=source_node.pk)
-    if (not target.question.is_finishing) and incoming_qs.exists():
+    incoming_count = incoming_qs.count()
+    if target.question.is_finishing and source_node is not None:
+        incoming_from_finishing = incoming_qs.filter(question__is_finishing=True).count()
+        incoming_from_ordinary = incoming_qs.filter(question__is_finishing=False).count()
+        if source_node.question.is_finishing:
+            if incoming_count >= 1:
+                raise ValueError(
+                    f"Węzeł #{target.id} ma już wejście. Pytanie kończące w łańcuchu może mieć tylko jedno wejście od poprzedniego pytania kończącego."
+                )
+        elif incoming_from_finishing >= 1:
+            raise ValueError(
+                f"Węzeł #{target.id} należy już do łańcucha pytań kończących i nie może przyjmować dodatkowych wejść z pytań zwykłych."
+            )
+    elif incoming_count >= 1:
         raise ValueError(f"Węzeł #{target.id} ma już połączenie przychodzące.")
     return target
 def _serialize_node(template: SurveyTemplate, n: TemplateNode):
@@ -754,8 +783,26 @@ def _format_notification_answer_text(question_type: str, raw_value: str) -> str:
     value = (raw_value or "").strip()
     if not value:
         return "-"
+    if question_type == Question.QuestionType.COMPLEX:
+        parts = [part.strip() for part in value.split(" | ") if part.strip()]
+        if not parts:
+            return value
+        rendered_parts = []
+        for part in parts:
+            label, separator, content = part.partition(":")
+            if separator:
+                rendered_parts.append(
+                    "\n".join(
+                        [
+                            f"Subpytanie: {label.strip()}",
+                            f"Odpowiedź: {content.strip() or '-'}",
+                        ]
+                    )
+                )
+            else:
+                rendered_parts.append(f"Odpowiedź: {part}")
+        return "\n\n".join(rendered_parts)
     if question_type in (
-        Question.QuestionType.COMPLEX,
         Question.QuestionType.OPEN_NUMBER_LIST,
         Question.QuestionType.OPEN_WITH_LIST,
     ):
@@ -768,8 +815,30 @@ def _format_notification_answer_html(question_type: str, raw_value: str) -> str:
     value = (raw_value or "").strip()
     if not value:
         return '<div style="font-size:15px; line-height:22px; color:#334155;">-</div>'
+    if question_type == Question.QuestionType.COMPLEX:
+        parts = [part.strip() for part in value.split(" | ") if part.strip()]
+        if parts:
+            rendered_parts = []
+            for part in parts:
+                label, separator, content = part.partition(":")
+                if separator:
+                    rendered_parts.append(
+                        f'<div style="padding:10px 0; border-bottom:1px dashed #dbe3ef;">'
+                        f'<span style="display:block; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Subpytanie</span>'
+                        f'<span style="display:block; font-size:15px; line-height:22px; color:#334155; margin-top:2px;">{html.escape(label.strip())}</span>'
+                        f'<span style="display:block; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b; margin-top:8px;">Odpowiedź</span>'
+                        f'<span style="display:block; font-size:15px; line-height:22px; color:#334155; margin-top:2px;">{html.escape(content.strip() or "-")}</span>'
+                        f"</div>"
+                    )
+                else:
+                    rendered_parts.append(
+                        f'<div style="padding:10px 0; border-bottom:1px dashed #dbe3ef;">'
+                        f'<span style="display:block; font-size:12px; line-height:18px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Odpowiedź</span>'
+                        f'<span style="display:block; font-size:15px; line-height:22px; color:#334155; margin-top:2px;">{html.escape(part)}</span>'
+                        f"</div>"
+                    )
+            return "".join(rendered_parts)
     if question_type in (
-        Question.QuestionType.COMPLEX,
         Question.QuestionType.OPEN_NUMBER_LIST,
         Question.QuestionType.OPEN_WITH_LIST,
     ):
@@ -1501,6 +1570,9 @@ def question_detail(request: HttpRequest, question_id: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_id, is_system=False, is_archived=False)
     templates = (
         SurveyTemplate.objects.filter(nodes__question=question)
+        .annotate(
+            live_sessions_count=Count("survey_sessions", filter=Q(survey_sessions__is_archived=False), distinct=True)
+        )
         .distinct()
         .order_by("name")
     )

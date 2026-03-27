@@ -70,6 +70,13 @@
       return { x: node.x + 112, y: node.y + 34 };
     }
 
+    function edgeStyle(fromNode, toNode, defaultColor, defaultLabel) {
+      if ((fromNode && fromNode.is_finishing_question) || (toNode && toNode.is_finishing_question)) {
+        return { color: "#fde68a", label: "KOŃCOWE" };
+      }
+      return { color: defaultColor, label: defaultLabel };
+    }
+
     function drawLine(fromNode, toNode, color, label) {
       const a = nodeCenter(fromNode);
       const b = nodeCenter(toNode);
@@ -117,13 +124,19 @@
       for (const node of nodes.values()) {
         if (node.question_type === "yes_no") {
           if (node.yes_id && nodes.has(node.yes_id)) {
-            drawLine(node, nodes.get(node.yes_id), "#16a34a", "TAK");
+            const yesTarget = nodes.get(node.yes_id);
+            const style = edgeStyle(node, yesTarget, "#16a34a", "TAK");
+            drawLine(node, yesTarget, style.color, style.label);
           }
           if (node.no_id && nodes.has(node.no_id)) {
-            drawLine(node, nodes.get(node.no_id), "#dc2626", "NIE");
+            const noTarget = nodes.get(node.no_id);
+            const style = edgeStyle(node, noTarget, "#dc2626", "NIE");
+            drawLine(node, noTarget, style.color, style.label);
           }
         } else if (node.next_id && nodes.has(node.next_id)) {
-          drawLine(node, nodes.get(node.next_id), "#0284c7", "DALEJ");
+          const nextTarget = nodes.get(node.next_id);
+          const style = edgeStyle(node, nextTarget, "#0284c7", "DALEJ");
+          drawLine(node, nextTarget, style.color, style.label);
         }
       }
     }
@@ -201,10 +214,20 @@
 
       for (const node of nodes.values()) {
         if (node.question_type === "yes_no") {
-          if (node.yes_id && nodes.has(node.yes_id)) drawPreviewEdge(node, nodes.get(node.yes_id), "#16a34a", "TAK");
-          if (node.no_id && nodes.has(node.no_id)) drawPreviewEdge(node, nodes.get(node.no_id), "#dc2626", "NIE");
+          if (node.yes_id && nodes.has(node.yes_id)) {
+            const yesTarget = nodes.get(node.yes_id);
+            const style = edgeStyle(node, yesTarget, "#16a34a", "TAK");
+            drawPreviewEdge(node, yesTarget, style.color, style.label);
+          }
+          if (node.no_id && nodes.has(node.no_id)) {
+            const noTarget = nodes.get(node.no_id);
+            const style = edgeStyle(node, noTarget, "#dc2626", "NIE");
+            drawPreviewEdge(node, noTarget, style.color, style.label);
+          }
         } else if (node.next_id && nodes.has(node.next_id)) {
-          drawPreviewEdge(node, nodes.get(node.next_id), "#0284c7", "DALEJ");
+          const nextTarget = nodes.get(node.next_id);
+          const style = edgeStyle(node, nextTarget, "#0284c7", "DALEJ");
+          drawPreviewEdge(node, nextTarget, style.color, style.label);
         }
       }
 

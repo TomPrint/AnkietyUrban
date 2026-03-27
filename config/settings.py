@@ -34,7 +34,7 @@ IDLE_LOGOUT_SECONDS = int(os.getenv("IDLE_LOGOUT_SECONDS", "900"))
 SURVEY_NOTIFICATION_FROM_EMAIL = os.getenv("SURVEY_NOTIFICATION_FROM_EMAIL", "powiadomienia@urban-vision.pl")
 SURVEY_NOTIFICATION_TO_EMAILS = [
     email.strip()
-    for email in os.getenv("SURVEY_NOTIFICATION_TO_EMAILS", "tomekklewicki@gmail.com").split(",")
+    for email in os.getenv("SURVEY_NOTIFICATION_TO_EMAILS", "mariusz@urban-vision.pl").split(",")
     if email.strip()
 ]
 

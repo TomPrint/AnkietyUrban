@@ -595,6 +595,8 @@ class QuestionManageForm(forms.ModelForm):
                 field.widget.attrs["class"] = "h-4 w-4 rounded border-slate-300"
             else:
                 field.widget.attrs["class"] = "w-full rounded border border-slate-300 px-3 py-2"
+        self.fields["is_finishing"].widget.attrs["data-finishing-checkbox"] = "true"
+        self.fields["question_type"].widget.attrs["data-question-type-select"] = "true"
         self.initial.setdefault("complex_items_json", "[]")
         if self.instance and self.instance.pk:
             self.initial["options_text"] = "\n".join(self.instance.choices.values_list("label", flat=True))

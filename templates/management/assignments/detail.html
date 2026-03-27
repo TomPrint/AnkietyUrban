@@ -128,7 +128,7 @@
           </div>
         </div>
         <div class="mt-3 overflow-x-auto">
-          <table class="min-w-full text-left text-sm">
+          <table class="uv-data-table min-w-full text-left text-sm">
             <thead class="text-slate-500">
               <tr>
                 <th class="py-2">Węzeł #</th>
@@ -169,7 +169,7 @@
     <p class="mt-2 text-sm text-slate-700">
       Obszar: <span class="font-semibold">{{ session.customer.address|default:"-" }}</span>
     </p>
-    <p class="mt-4 text-sm text-slate-700">
+    <p class="mt-4 text-sm text-red-700">
       Za chwilę otworzysz obszar klienta. Wyświetlenie aktywnej ankiety może wpłynąć na analitykę. Czy na pewno chcesz otworzyć ankietę?
     </p>
     <div class="mt-6 flex gap-3">
@@ -209,5 +209,7 @@
   })();
 </script>
 {% endblock %}
+
+
 
 

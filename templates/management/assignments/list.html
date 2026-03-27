@@ -9,8 +9,8 @@
     border-spacing: 0 0.35rem;
   }
   .survey-portal-table thead th {
-    padding: 0.55rem 0.55rem;
-    font-size: 0.82rem;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.76rem;
   }
   .survey-sort-link {
     display: inline-flex;
@@ -33,6 +33,7 @@
   .survey-portal-table tbody td {
     padding: 0.6rem 0.55rem;
     vertical-align: top;
+    font-size: 0.82rem;
   }
   .survey-portal-table tbody tr {
     box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18);
@@ -42,14 +43,47 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    min-width: 6rem;
+    min-width: 5rem;
   }
   .survey-action-btn {
-    width: 5.5rem;
-    padding: 0.22rem 0.4rem !important;
-    font-size: 0.76rem;
+    width: 5rem;
+    padding: 0.18rem 0.32rem !important;
+    font-size: 0.72rem;
     line-height: 1.15;
     justify-content: center;
+  }
+  .survey-sort-link {
+    gap: 0.2rem;
+    font-size: 0.76rem;
+    line-height: 1.15;
+  }
+  .survey-portal-table .survey-copy-btn {
+    padding: 0.18rem 0.35rem !important;
+    font-size: 0.68rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  @media (min-width: 768px) and (max-width: 1280px) {
+    .survey-portal-table .survey-wide-label {
+      white-space: normal;
+      line-height: 1.2;
+    }
+    .survey-portal-table .survey-status-badge {
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+    }
+  }
+  @media (max-width: 767px) {
+    .survey-portal-table thead th {
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    .survey-portal-table tbody td {
+      padding: 0.95rem 1rem;
+      font-size: 0.875rem;
+    }
   }
 </style>
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
@@ -131,7 +165,7 @@
             </th>
             <th>
               <a class="survey-sort-link {% if sort == 'int_ext' %}active{% endif %}" href="?q={{ q|urlencode }}&sort=int_ext&dir={% if sort == 'int_ext' and dir == 'asc' %}desc{% else %}asc{% endif %}">
-                <span class="whitespace-nowrap">Wew/Zew</span>
+                <span class="survey-wide-label whitespace-nowrap">Wew/Zew</span>
                 {% if sort == 'int_ext' %}<span class="survey-sort-arrow">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
               </a>
             </th>
@@ -189,13 +223,13 @@
             </td>
             <td>
               {% if s.status == 'open' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Otwarte</span>
+                <span class="survey-status-badge inline-flex items-center rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">Otwarte</span>
               {% elif s.status == 'closed' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Zamknięta</span>
+                <span class="survey-status-badge inline-flex items-center rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Zamknięta</span>
               {% elif s.status == 'saved_again' %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Zapisana ponownie</span>
+                <span class="survey-status-badge inline-flex items-center rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Zapisana ponownie</span>
               {% else %}
-                <span class="inline-flex items-center whitespace-nowrap rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">{{ s.get_status_display }}</span>
+                <span class="survey-status-badge inline-flex items-center rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">{{ s.get_status_display }}</span>
               {% endif %}
             </td>
             <td>
@@ -218,7 +252,7 @@
             <td>
               <button
                 type="button"
-                class="rounded border border-slate-300 px-1.5 py-1 text-[11px] font-semibold leading-tight"
+                class="survey-copy-btn rounded border border-slate-300 px-1.5 py-1 text-[11px] font-semibold leading-tight"
                 data-copy-survey-link="true"
                 data-link="{{ request.scheme }}://{{ request.get_host }}{% url 'survey-by-token' s.token %}"
                 data-company="{{ s.customer.company_name }}"
