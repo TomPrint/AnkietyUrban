@@ -11,7 +11,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{% static 'css/uv-theme.css' %}" />
   </head>
-  <body class="min-h-screen text-slate-900 {% if is_public_survey %}uv-survey-bg uv-survey-cctv{% elif is_portal_scraper %}uv-scraper-bg{% elif is_portal_section %}uv-portal-bg{% elif nav_url_name == 'login' or is_staff_nav_visible %}uv-admin-bg{% else %}bg-slate-100{% endif %}">
+  <body class="min-h-screen text-slate-900 {% if is_public_survey %}uv-survey-bg uv-survey-cctv{% elif is_scraper_section %}uv-scraper-bg{% elif is_portal_section %}uv-portal-bg{% elif nav_url_name == 'login' or is_staff_nav_visible %}uv-admin-bg{% else %}bg-slate-100{% endif %}">
     {% if is_public_survey %}
     <div class="mx-auto flex w-full max-w-7xl justify-start px-2 pt-2 sm:px-4">
       <img src="{% static 'assets/urbanvision-logo.svg' %}" alt="Urban Vision" class="h-[4.55rem] w-auto uv-logo-on-dark" />
@@ -29,11 +29,11 @@
         </button>
         <div class="hidden items-center gap-2 sm:gap-3 lg:flex">
           <a class="uv-nav-link" href="{% url 'portal-home' %}">Portal</a>
-          {% if is_portal_section %}
+          {% if is_portal_section or is_scraper_section %}
           <a class="uv-nav-link" href="{% url 'portal-users' %}">Użytkownicy</a>
           <a class="uv-nav-link" href="{% url 'portal-customers' %}">Klienci</a>
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Ankiety</a>
-          <a class="uv-nav-link" href="{% url 'portal-scraper' %}">Scraper</a>
+          <a class="uv-nav-link" href="{% url 'scraper-home' %}">Scraper</a>
           {% else %}
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Panel</a>
           <a class="uv-nav-link" href="{% url 'management-questions' %}">Pytania</a>
@@ -55,11 +55,11 @@
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div class="grid gap-2">
             <a class="uv-nav-link w-full" href="{% url 'portal-home' %}">Portal</a>
-            {% if is_portal_section %}
+            {% if is_portal_section or is_scraper_section %}
             <a class="uv-nav-link w-full" href="{% url 'portal-users' %}">Użytkownicy</a>
             <a class="uv-nav-link w-full" href="{% url 'portal-customers' %}">Klienci</a>
             <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Ankiety</a>
-            <a class="uv-nav-link w-full" href="{% url 'portal-scraper' %}">Scraper</a>
+            <a class="uv-nav-link w-full" href="{% url 'scraper-home' %}">Scraper</a>
             {% else %}
             <a class="uv-nav-link w-full" href="{% url 'management-dashboard' %}">Panel</a>
             <a class="uv-nav-link w-full" href="{% url 'management-questions' %}">Pytania</a>

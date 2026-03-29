@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'accounts',
     'crm',
     'portal',
+    'scraper',
     'surveys',
 ]
 

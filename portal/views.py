@@ -19,10 +19,3 @@ def portal_home(request):
         "customers_with_phone": Customer.objects.filter(is_archived=False).exclude(telephone="").count(),
     }
     return render(request, "portal/home.html", context)
-
-
-@staff_required
-def portal_scraper(request):
-    return render(request, "portal/scraper.html")
-
-
