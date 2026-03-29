@@ -98,29 +98,6 @@
     </script>
     <script>
       (function () {
-        const idleMs = Number("{{ IDLE_LOGOUT_SECONDS|default:900 }}") * 1000;
-        const logoutForm = document.getElementById("logout-form");
-        let timer = null;
-
-        function doWyloguj() {
-          if (logoutForm) logoutForm.submit();
-        }
-
-        function resetIdleTimer() {
-          if (timer) clearTimeout(timer);
-          timer = setTimeout(() => {
-            doWyloguj();
-          }, idleMs);
-        }
-
-        ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach((eventName) => {
-          window.addEventListener(eventName, resetIdleTimer, { passive: true });
-        });
-        resetIdleTimer();
-      })();
-    </script>
-    <script>
-      (function () {
         const toggle = document.getElementById("mobile-menu-toggle");
         const menu = document.getElementById("mobile-menu");
         if (!toggle || !menu) return;
