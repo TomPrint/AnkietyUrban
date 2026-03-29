@@ -11,7 +11,7 @@
 body {
   background: var(--uv-bg);
   color: var(--uv-text);
-  font-family: "Public Sans", sans-serif;
+  font-family: "Exo 2", sans-serif;
 }
 
 h1,
@@ -21,7 +21,7 @@ h4,
 h5,
 h6,
 .uv-brand {
-  font-family: "Michroma", sans-serif;
+  font-family: "Exo 2", sans-serif;
 }
 
 .uv-nav {
@@ -37,15 +37,16 @@ h6,
 
 .uv-nav-link {
   color: var(--uv-navy);
-  font-family: "Public Sans", sans-serif;
-  font-weight: 500;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 600;
+  font-size: 0.94rem;
+  letter-spacing: 0.16em;
+  line-height: 1;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem 0.7rem;
+  padding: 0.5rem 0.95rem;
   border: 1px solid rgba(26, 35, 49, 0.22);
   border-radius: 0.45rem;
   background: #ffffff;
