@@ -1,6 +1,5 @@
 .env
 *.env
-.env.example
 
 # Python cache / virtual env
 __pycache__/
