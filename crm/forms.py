@@ -1,4 +1,4 @@
-﻿from django import forms
+from django import forms
 
 from .models import Customer
 
@@ -6,13 +6,15 @@ from .models import Customer
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ["company_name", "address", "contact_person", "email", "telephone"]
+        fields = ["company_name", "district", "address", "website", "contact_person", "email", "telephone"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         labels = {
             "company_name": "Nazwa firmy",
+            "district": "Dzielnica",
             "address": "Adres",
+            "website": "Strona WWW",
             "contact_person": "Osoba kontaktowa",
             "email": "E-mail",
             "telephone": "Telefon",

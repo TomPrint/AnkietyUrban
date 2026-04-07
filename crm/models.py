@@ -4,7 +4,9 @@ from django.utils import timezone
 
 class Customer(models.Model):
     company_name = models.CharField(max_length=255)
+    district = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=500, blank=True)
+    website = models.URLField(blank=True)
     contact_person = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     telephone = models.CharField(max_length=50, blank=True)
@@ -23,4 +25,3 @@ class Customer(models.Model):
         self.is_archived = True
         self.archived_at = timezone.now()
         self.save(update_fields=["is_archived", "archived_at"])
-

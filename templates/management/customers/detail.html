@@ -1,27 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Szczegóły klienta | Portal Urban Vision{% endblock %}
+{% block title %}Szczegoly klienta | Portal Urban Vision{% endblock %}
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
   <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
     <div>
-      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczegóły klienta w portalu</p>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Szczegoly klienta w portalu</p>
       <h1 class="mt-2 text-3xl font-bold">{{ customer.company_name }}</h1>
       <p class="mt-2 text-sm text-slate-600">
-        Adres: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
+        Dzielnica: <span class="font-semibold">{{ customer.district|default:"-" }}</span>
+        | Adres: <span class="font-semibold">{{ customer.address|default:"-" }}</span>
         | Kontakt: <span class="font-semibold">{{ customer.contact_person|default:"-" }}</span>
+      </p>
+      <p class="mt-2 text-sm text-slate-600">
+        WWW:
+        {% if customer.website %}
+        <a class="font-semibold text-blue-700 hover:underline" href="{{ customer.website }}" target="_blank" rel="noreferrer">{{ customer.website }}</a>
+        {% else %}
+        <span class="font-semibold">-</span>
+        {% endif %}
+        | E-mail: <span class="font-semibold">{{ customer.email|default:"-" }}</span>
+        | Telefon: <span class="font-semibold">{{ customer.telephone|default:"-" }}</span>
       </p>
     </div>
     <div class="flex gap-3">
-      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customers' %}">Powrót do klientów</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customers' %}">Powrot do klientow</a>
       <a class="rounded-lg border border-slate-300 px-4 py-2 font-semibold" href="{% url 'portal-customer-edit' customer.id %}">Edytuj klienta</a>
     </div>
   </header>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
     <h2 class="text-xl font-semibold">Ankiety i wyniki</h2>
-    <p class="mt-2 text-sm text-slate-500">Wynik opiera się na osiągniętym postępie w przebiegu ankiety (100% po zakończeniu).</p>
+    <p class="mt-2 text-sm text-slate-500">Wynik opiera sie na osiagnietym postepie w przebiegu ankiety (100% po zakonczeniu).</p>
 
     <div class="mt-6 overflow-x-auto">
       <table class="uv-data-table min-w-full text-left text-sm">
@@ -46,7 +57,7 @@
             <td class="py-2">{{ row.saved_versions_count }}</td>
             <td class="py-2">{{ row.session.updated_at }}</td>
             <td class="py-2">
-              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' row.session.id %}">Szczegóły</a>
+              <a class="rounded border border-slate-300 px-2 py-1" href="{% url 'management-assignment-detail' row.session.id %}">Szczegoly</a>
             </td>
           </tr>
           {% empty %}
@@ -58,5 +69,3 @@
   </section>
 </main>
 {% endblock %}
-
-

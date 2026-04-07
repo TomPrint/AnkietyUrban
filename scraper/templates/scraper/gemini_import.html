@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Import kandydatow | Scraper Urban Vision{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+  <section class="rounded-2xl bg-white p-6 shadow">
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Scraper Urban Vision</p>
+    <h1 class="mt-2 text-3xl font-bold text-slate-900">Gemini i Tavily: kandydaci do CRM</h1>
+        <p class="mt-3 max-w-4xl text-sm text-slate-600">
+      Oba &#378;rodla zapisuj&#261; kandydat&oacute;w do tej samej kolejki. Aplikacja wykrywa duplikaty mi&#281;dzy Gemini i Tavily, a operator zatwierdza dopiero te rekordy, kt&oacute;re maj&#261; trafi&#263; do wsp&oacute;lnej bazy klient&oacute;w.
+    </p>
+  </section>
+
+  <section class="mt-8 grid gap-8 lg:grid-cols-2">
+    <article class="rounded-2xl bg-white p-6 shadow">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Gemini</h2>
+          <p class="mt-1 text-sm text-slate-500">Wyszukiwanie live online search z Google Grounding dla przegl&#261;dania internetu z Google Gemini AI w czasie rzeczywistym.</p>
+        </div>
+        {% if active_form == "gemini" %}
+        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Aktywne</span>
+        {% endif %}
+      </div>
+
+      <form method="post" action="{% url 'scraper-gemini-generate' %}" class="mt-6 space-y-5">
+        {% csrf_token %}
+        {% if gemini_form.non_field_errors %}
+        <div class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{{ gemini_form.non_field_errors|join:", " }}</div>
+        {% endif %}
+        <div class="grid gap-5 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ gemini_form.search_goal.id_for_label }}">{{ gemini_form.search_goal.label }}</label>
+            {{ gemini_form.search_goal }}
+            {% if gemini_form.search_goal.help_text %}<p class="mt-1 text-sm text-slate-500">{{ gemini_form.search_goal.help_text }}</p>{% endif %}
+            {% if gemini_form.search_goal.errors %}<p class="mt-1 text-sm text-red-700">{{ gemini_form.search_goal.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ gemini_form.city.id_for_label }}">{{ gemini_form.city.label }}</label>
+            {{ gemini_form.city }}
+            {% if gemini_form.city.errors %}<p class="mt-1 text-sm text-red-700">{{ gemini_form.city.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ gemini_form.district.id_for_label }}">{{ gemini_form.district.label }}</label>
+            {{ gemini_form.district }}
+            {% if gemini_form.district.help_text %}<p class="mt-1 text-sm text-slate-500">{{ gemini_form.district.help_text }}</p>{% endif %}
+            {% if gemini_form.district.errors %}<p class="mt-1 text-sm text-red-700">{{ gemini_form.district.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ gemini_form.max_candidates.id_for_label }}">{{ gemini_form.max_candidates.label }}</label>
+            {{ gemini_form.max_candidates }}
+            {% if gemini_form.max_candidates.help_text %}<p class="mt-1 text-sm text-slate-500">{{ gemini_form.max_candidates.help_text }}</p>{% endif %}
+            {% if gemini_form.max_candidates.errors %}<p class="mt-1 text-sm text-red-700">{{ gemini_form.max_candidates.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div class="flex items-center gap-3 pt-7">
+            {{ gemini_form.use_google_search }}
+            <label class="text-sm font-medium text-slate-700" for="{{ gemini_form.use_google_search.id_for_label }}">{{ gemini_form.use_google_search.label }}</label>
+          </div>
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ gemini_form.extra_instructions.id_for_label }}">{{ gemini_form.extra_instructions.label }}</label>
+            {{ gemini_form.extra_instructions }}
+            {% if gemini_form.extra_instructions.errors %}<p class="mt-1 text-sm text-red-700">{{ gemini_form.extra_instructions.errors|join:", " }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Uruchom Gemini</button>
+        </div>
+      </form>
+    </article>
+
+    <article class="rounded-2xl bg-white p-6 shadow">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Tavily</h2>
+          <p class="mt-1 text-sm text-slate-500">API wynik&oacute;w google z filtrem na fraz&#281; i lokalizacj&#281; oraz ekstrakcj&#281; kontaktu.</p>
+        </div>
+        {% if active_form == "tavily" %}
+        <span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">Aktywne</span>
+        {% endif %}
+      </div>
+
+      <form method="post" action="{% url 'scraper-tavily-generate' %}" class="mt-6 space-y-5">
+        {% csrf_token %}
+        {% if tavily_form.non_field_errors %}
+        <div class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{{ tavily_form.non_field_errors|join:", " }}</div>
+        {% endif %}
+        <div class="grid gap-5 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.search_goal.id_for_label }}">{{ tavily_form.search_goal.label }}</label>
+            {{ tavily_form.search_goal }}
+            {% if tavily_form.search_goal.help_text %}<p class="mt-1 text-sm text-slate-500">{{ tavily_form.search_goal.help_text }}</p>{% endif %}
+            {% if tavily_form.search_goal.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.search_goal.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.city.id_for_label }}">{{ tavily_form.city.label }}</label>
+            {{ tavily_form.city }}
+            {% if tavily_form.city.help_text %}<p class="mt-1 text-sm text-slate-500">{{ tavily_form.city.help_text }}</p>{% endif %}
+            {% if tavily_form.city.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.city.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.district.id_for_label }}">{{ tavily_form.district.label }}</label>
+            {{ tavily_form.district }}
+            {% if tavily_form.district.help_text %}<p class="mt-1 text-sm text-slate-500">{{ tavily_form.district.help_text }}</p>{% endif %}
+            {% if tavily_form.district.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.district.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.max_candidates.id_for_label }}">{{ tavily_form.max_candidates.label }}</label>
+            {{ tavily_form.max_candidates }}
+            {% if tavily_form.max_candidates.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.max_candidates.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.search_depth.id_for_label }}">{{ tavily_form.search_depth.label }}</label>
+            {{ tavily_form.search_depth }}
+            {% if tavily_form.search_depth.help_text %}<p class="mt-1 text-sm text-slate-500">{{ tavily_form.search_depth.help_text }}</p>{% endif %}
+            {% if tavily_form.search_depth.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.search_depth.errors|join:", " }}</p>{% endif %}
+          </div>
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ tavily_form.extra_instructions.id_for_label }}">{{ tavily_form.extra_instructions.label }}</label>
+            {{ tavily_form.extra_instructions }}
+            {% if tavily_form.extra_instructions.errors %}<p class="mt-1 text-sm text-red-700">{{ tavily_form.extra_instructions.errors|join:", " }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Uruchom Tavily</button>
+        </div>
+      </form>
+    </article>
+  </section>
+</main>
+{% endblock %}
+

@@ -1,0 +1,194 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Kandydaci | Scraper Urban Vision{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+  <section class="rounded-2xl bg-white p-6 shadow">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Scraper Urban Vision</p>
+        <h1 class="mt-2 text-3xl font-bold text-slate-900">Kandydaci do bazy klient&oacute;w</h1>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'scraper-gemini-import' %}">Nowe wyszukiwanie</a>
+        <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'scraper-home' %}">Panel</a>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-2">
+      {% for option in status_options %}
+      <a
+        class="rounded-full border px-3 py-1 text-sm font-semibold {% if status == option.value %}border-slate-900 bg-slate-900 text-white{% else %}border-slate-300 text-slate-700{% endif %}"
+        href="{{ option.url }}"
+      >{{ option.label }}</a>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if show_filters %}
+  <section class="mt-6 rounded-2xl bg-white p-6 shadow">
+    <form method="get" class="grid gap-4 md:grid-cols-4 md:items-end">
+      <input type="hidden" name="status" value="all">
+      <div class="md:col-span-2">
+        <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ filter_form.q.id_for_label }}">{{ filter_form.q.label }}</label>
+        {{ filter_form.q }}
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ filter_form.source.id_for_label }}">{{ filter_form.source.label }}</label>
+        {{ filter_form.source }}
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700" for="{{ filter_form.duplicate.id_for_label }}">{{ filter_form.duplicate.label }}</label>
+        {{ filter_form.duplicate }}
+      </div>
+      <div class="flex flex-wrap gap-3 md:col-span-4">
+        <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Filtruj</button>
+        <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{{ reset_filters_url }}">Wyczysc filtry</a>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="mt-8 rounded-2xl bg-white p-4 shadow sm:p-5">
+    <div class="overflow-x-auto">
+      <table class="uv-data-table w-full min-w-[1080px] text-left text-[12px] leading-5 align-top">
+        <thead class="text-slate-500">
+          <tr>
+            {% for header in header_columns %}
+            <th class="py-1.5 {% if header.key == 'company_name' %}min-w-[112px]{% elif header.key == 'source' %}whitespace-nowrap min-w-[54px]{% elif header.key == 'created_at' %}whitespace-nowrap min-w-[92px]{% elif header.key == 'reviewed_at' %}whitespace-nowrap min-w-[84px]{% elif header.key == 'district' %}min-w-[72px]{% elif header.key == 'email' %}min-w-[92px]{% elif header.key == 'telephone' %}min-w-[68px]{% elif header.key == 'reason' %}min-w-[92px]{% elif header.key == 'website' %}min-w-[74px]{% elif header.key == 'confidence' %}whitespace-nowrap min-w-[50px]{% elif header.key == 'duplicate_sort' %}min-w-[84px]{% elif header.key == 'status_sort' %}min-w-[112px] text-center{% endif %}">
+              {% if show_filters %}
+              <a class="inline-flex items-center gap-1 hover:text-slate-900 {% if header.key == 'status_sort' %}justify-center{% endif %}" href="{{ header.url }}">
+                <span>{{ header.label }}</span>
+                {% if header.active %}
+                <span class="text-[10px]">{% if header.direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                {% endif %}
+              </a>
+              {% else %}
+              {{ header.label }}
+              {% endif %}
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for candidate in page_obj %}
+          <tr class="border-t border-slate-200">
+            <td class="py-2 align-top">
+              <div class="font-semibold text-slate-900">{{ candidate.company_name }}</div>
+              {% if candidate.status == "approved" and candidate.approved_customer %}
+              <div class="mt-1 text-[11px] leading-4 text-emerald-700">Klient: {{ candidate.approved_customer.company_name }}</div>
+              {% elif candidate.status == "rejected" %}
+              <div class="mt-1 text-[11px] leading-4 text-rose-700">{{ candidate.rejection_reason|default:"Odrzucone przez operatora." }}</div>
+              {% endif %}
+            </td>
+            <td class="py-2 align-top whitespace-nowrap"><span class="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-700">{{ candidate.source|title }}</span></td>
+            <td class="py-2 align-top whitespace-nowrap">
+              {{ candidate.created_at|date:"Y-m-d" }}
+              <div class="text-[10px] leading-4 text-slate-500">{{ candidate.created_at|date:"H:i" }}</div>
+            </td>
+            <td class="py-2 align-top whitespace-nowrap">
+              {% if candidate.status == "approved" %}
+              <span class="text-emerald-700">{{ candidate.reviewed_at|date:"Y-m-d"|default:"-" }}</span>
+              <div class="text-[10px] leading-4 text-slate-500">{{ candidate.reviewed_at|date:"H:i" }}</div>
+              {% elif candidate.status == "rejected" %}
+              <span class="text-rose-700">{{ candidate.reviewed_at|date:"Y-m-d"|default:"-" }}</span>
+              <div class="text-[10px] leading-4 text-slate-500">{{ candidate.reviewed_at|date:"H:i" }}</div>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+            <td class="py-2 align-top">
+              <div>{{ candidate.district|default:"-" }}</div>
+              <div class="mt-1 max-w-[92px] text-[10px] leading-4 text-slate-500">{{ candidate.address|default:"-" }}</div>
+            </td>
+            <td class="py-2 align-top">
+              {% if candidate.email %}
+              <a class="break-all text-red-600 hover:underline" href="mailto:{{ candidate.email }}">{{ candidate.email }}</a>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+            <td class="py-2 align-top">
+              <span class="text-slate-700">{{ candidate.telephone|default:"-" }}</span>
+            </td>
+            <td class="py-2 align-top max-w-[120px] text-slate-700">{{ candidate.reason|default:"-" }}</td>
+            <td class="py-2 align-top">
+              {% if candidate.website %}
+              <a class="break-all text-red-600 hover:underline" href="{{ candidate.website }}" target="_blank" rel="noreferrer">{{ candidate.website }}</a>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td class="py-2 align-top whitespace-nowrap">{{ candidate.confidence|default:"-" }}</td>
+            <td class="py-2 align-top">
+              {% if candidate.duplicate_customer %}
+              <div class="text-[10px] leading-4 text-amber-700">Istniej&#261;cy klient:</div>
+              <div class="font-semibold text-amber-800">{{ candidate.duplicate_customer.company_name }}</div>
+              {% elif candidate.duplicate_candidate %}
+              <div class="text-[10px] leading-4 text-amber-700">Duplikat kandydata ({{ candidate.duplicate_candidate.source|title }}):</div>
+              <div class="font-semibold text-amber-800">{{ candidate.duplicate_candidate.company_name }}</div>
+              {% else %}
+              <span class="text-slate-400">Brak</span>
+              {% endif %}
+            </td>
+            <td class="py-2 align-top">
+              {% if candidate.status == "pending" %}
+              <div class="mx-auto flex w-[104px] flex-col gap-1">
+                <form method="post" action="{% url 'scraper-candidate-approve' candidate.id %}">
+                  {% csrf_token %}
+                  <button class="w-full rounded-lg bg-emerald-600 px-1.5 py-1 text-[11px] font-semibold text-white" type="submit">Zatwierd&#378;</button>
+                </form>
+                <form method="post" action="{% url 'scraper-candidate-reject' candidate.id %}" class="space-y-1">
+                  {% csrf_token %}
+                  <input
+                    type="text"
+                    name="reason"
+                    class="w-full rounded border border-slate-300 px-1.5 py-1 text-[11px]"
+                    placeholder="Pow&oacute;d odrzucenia"
+                  >
+                  <button class="w-full rounded-lg border border-rose-300 px-1.5 py-1 text-[11px] font-semibold text-rose-700" type="submit">Odrzu&#263;</button>
+                </form>
+              </div>
+              {% elif candidate.status == "approved" %}
+              <div class="mx-auto flex w-[104px] justify-center">
+                <span class="rounded bg-emerald-100 px-1.5 py-1 text-[10px] font-semibold text-emerald-800">Zatwierdzony</span>
+              </div>
+              {% else %}
+              <div class="mx-auto flex w-[104px] flex-col items-center gap-1">
+                <span class="rounded bg-rose-100 px-1.5 py-1 text-[10px] font-semibold text-rose-800">Odrzucony</span>
+                <form method="post" action="{% url 'scraper-candidate-reopen' candidate.id %}" class="w-full">
+                  {% csrf_token %}
+                  <button class="w-full rounded-lg border border-sky-300 px-1.5 py-1 text-[11px] font-semibold text-sky-700" type="submit">Ponownie</button>
+                </form>
+                <form method="post" action="{% url 'scraper-candidate-delete' candidate.id %}" class="w-full">
+                  {% csrf_token %}
+                  <button class="w-full rounded-lg border border-slate-300 px-1.5 py-1 text-[11px] font-semibold text-slate-700" type="submit">Usu&#324;</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="12" class="py-4 text-slate-500">Brak kandydat&oacute;w dla wybranego filtra.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="mt-6 flex flex-wrap items-center gap-3 text-sm">
+      {% if page_obj.has_previous %}
+      <a class="rounded-lg border border-slate-300 px-3 py-2 font-semibold" href="{{ previous_page_url }}">Poprzednia</a>
+      {% endif %}
+      <span class="text-slate-500">Strona {{ page_obj.number }} z {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a class="rounded-lg border border-slate-300 px-3 py-2 font-semibold" href="{{ next_page_url }}">Nastepna</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

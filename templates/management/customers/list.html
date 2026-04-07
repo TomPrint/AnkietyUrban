@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Klienci | Portal Urban Vision{% endblock %}
 
@@ -33,7 +33,10 @@
         <thead class="text-slate-500">
           <tr>
             <th class="py-2">Firma</th>
+            <th class="py-2">Data dodania</th>
+            <th class="py-2">Dzielnica</th>
             <th class="py-2">Adres</th>
+            <th class="py-2">WWW</th>
             <th class="py-2">Kontakt</th>
             <th class="py-2">Email</th>
             <th class="py-2">Telefon</th>
@@ -47,7 +50,16 @@
             <td class="py-2">
               <a class="font-semibold text-slate-800 hover:text-blue-700" href="{% url 'portal-customer-detail' c.id %}">{{ c.company_name }}</a>
             </td>
+            <td class="py-2 whitespace-nowrap">{{ c.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="py-2">{{ c.district|default:"-" }}</td>
             <td class="py-2">{{ c.address|default:"-" }}</td>
+            <td class="py-2 break-all">
+              {% if c.website %}
+              <a class="text-blue-700 hover:underline" href="{{ c.website }}" target="_blank" rel="noreferrer">{{ c.website }}</a>
+              {% else %}
+              -
+              {% endif %}
+            </td>
             <td class="py-2">{{ c.contact_person|default:"-" }}</td>
             <td class="py-2 break-all">{{ c.email|default:"-" }}</td>
             <td class="py-2">{{ c.telephone|default:"-" }}</td>
@@ -68,7 +80,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="py-4 text-slate-500">Brak klientów.</td></tr>
+          <tr><td colspan="10" class="py-4 text-slate-500">Brak klientow.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -82,15 +94,15 @@
   style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;display:none;"
 >
   <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
-    <h2 class="text-xl font-semibold text-red-700">Usuń klienta</h2>
+    <h2 class="text-xl font-semibold text-red-700">Usun klienta</h2>
     <p class="mt-3 text-sm text-slate-700">
       Usuwasz klienta: <span id="delete-customer-name" class="font-semibold"></span>
     </p>
     <p class="mt-2 text-sm text-red-700">
-      Uwaga: to może wpłynąć na aktywne ankiety powiązane z tym klientem.
+      Uwaga: to moze wplynac na aktywne ankiety powiazane z tym klientem.
     </p>
     <p class="mt-2 text-sm text-slate-600">
-      Przycisk potwierdzenia odblokuje się za <span id="delete-customer-counter">5</span> sek.
+      Przycisk potwierdzenia odblokuje sie za <span id="delete-customer-counter">5</span> sek.
     </p>
     <form id="delete-customer-form" method="post" class="mt-6 flex gap-3">
       {% csrf_token %}
@@ -155,11 +167,6 @@
     modal.addEventListener("click", (e) => {
       if (e.target === modal) closeModal();
     });
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeModal();
-    });
   })();
 </script>
 {% endblock %}
-
-

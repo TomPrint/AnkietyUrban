@@ -11,6 +11,12 @@ PORTAL_ROUTE_NAMES = {
 
 SCRAPER_ROUTE_NAMES = {
     "scraper-home",
+    "scraper-gemini-import",
+    "scraper-gemini-generate",
+    "scraper-tavily-generate",
+    "scraper-candidates",
+    "scraper-candidate-approve",
+    "scraper-candidate-reject",
 }
 
 PUBLIC_SURVEY_ROUTE_NAMES = {
