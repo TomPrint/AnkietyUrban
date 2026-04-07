@@ -1,4 +1,4 @@
-PORTAL_ROUTE_NAMES = {
+﻿PORTAL_ROUTE_NAMES = {
     "portal-home",
     "portal-users",
     "portal-user-create",
@@ -17,6 +17,8 @@ SCRAPER_ROUTE_NAMES = {
     "scraper-candidates",
     "scraper-candidate-approve",
     "scraper-candidate-reject",
+    "scraper-candidate-reopen",
+    "scraper-candidate-delete",
 }
 
 PUBLIC_SURVEY_ROUTE_NAMES = {
