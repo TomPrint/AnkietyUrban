@@ -4,7 +4,7 @@
 
 {% block content %}
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-  <section class="rounded-2xl bg-white p-8 shadow-lg">
+  <section class="rounded-2xl bg-white p-5 shadow-lg sm:p-6 lg:p-8">
     <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Scraper Urban Vision</p>
     <h1 class="mt-2 text-3xl font-bold text-slate-900">Leady z Gemini i Tavily</h1>
     <p class="mt-4 max-w-3xl text-sm text-slate-600">
@@ -12,43 +12,43 @@
       oznacz duplikaty, odrzu&#263; b&#322;&#281;dne rekordy, zatwierd&#378; i przenie&#347; do CRM leady
       i zapisz je jako klient&oacute;w.
     </p>
-    <div class="mt-8 flex flex-wrap gap-3">
-      <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'scraper-gemini-import' %}">Szukaj kandydatów</a>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'scraper-candidates' %}">Przejrzyj kandydatów</a>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'portal-home' %}">Powrót do portalu</a>
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <a class="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white" href="{% url 'scraper-gemini-import' %}">Szukaj kandydatów</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold" href="{% url 'scraper-candidates' %}">Przejrzyj kandydatów</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold" href="{% url 'portal-home' %}">Powrót do portalu</a>
     </div>
   </section>
 
-  <section class="mt-8 grid gap-4 md:grid-cols-4">
-    <article class="rounded-2xl bg-white p-6 shadow">
+  <section class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <article class="rounded-2xl bg-white p-5 shadow sm:p-6">
       <p class="text-sm text-slate-500">Wszyscy</p>
       <p class="mt-2 text-3xl font-bold text-slate-900">{{ stats.total|default:0 }}</p>
     </article>
-    <article class="rounded-2xl bg-white p-6 shadow">
+    <article class="rounded-2xl bg-white p-5 shadow sm:p-6">
       <p class="text-sm text-slate-500">Oczekujący</p>
       <p class="mt-2 text-3xl font-bold text-amber-700">{{ stats.pending|default:0 }}</p>
     </article>
-    <article class="rounded-2xl bg-white p-6 shadow">
+    <article class="rounded-2xl bg-white p-5 shadow sm:p-6">
       <p class="text-sm text-slate-500">Zatwierdzeni</p>
       <p class="mt-2 text-3xl font-bold text-emerald-700">{{ stats.approved|default:0 }}</p>
     </article>
-    <article class="rounded-2xl bg-white p-6 shadow">
+    <article class="rounded-2xl bg-white p-5 shadow sm:p-6">
       <p class="text-sm text-slate-500">Odrzuceni</p>
       <p class="mt-2 text-3xl font-bold text-rose-700">{{ stats.rejected|default:0 }}</p>
     </article>
   </section>
 
-  <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <div class="flex items-center justify-between gap-4">
+  <section class="mt-8 rounded-2xl bg-white p-5 shadow sm:p-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 class="text-xl font-bold text-slate-900">Ostatnio dodani kandydaci</h2>
         <p class="mt-1 text-sm text-slate-500">Szybki podgląd.</p>
       </div>
-      <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'scraper-candidates' %}">Pełna lista kandydatów</a>
+      <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold" href="{% url 'scraper-candidates' %}">Pełna lista kandydatów</a>
     </div>
 
     <div class="mt-6 overflow-x-auto">
-      <table class="uv-data-table min-w-full text-left text-sm">
+      <table class="uv-data-table min-w-[760px] text-left text-sm">
         <thead class="text-slate-500">
           <tr>
             <th class="py-2">Nazwa</th>

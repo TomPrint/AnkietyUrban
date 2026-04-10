@@ -25,7 +25,41 @@
           <span class="uv-brand mt-1 text-xs">{{ portal_brand_label }}</span>
         </a>
         {% if user.is_authenticated %}
-        <div class="flex items-center gap-2 sm:gap-3">
+        <details class="relative lg:hidden">
+          <summary class="flex cursor-pointer list-none items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900">
+            Menu
+          </summary>
+          <div class="absolute right-0 top-full z-20 mt-3 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div class="flex flex-col gap-2">
+              {% if is_scraper_section %}
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-home' %}">Portal</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-customers' %}">Klienci</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'scraper-home' %}">Panel</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'scraper-gemini-import' %}">Szukaj</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'scraper-candidates' %}">Leady</a>
+              {% elif is_portal_section %}
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-home' %}">Portal</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-users' %}">U&#380;ytkownicy</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-customers' %}">Klienci</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'management-dashboard' %}">Ankiety</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'scraper-home' %}">Scraper</a>
+              {% else %}
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-home' %}">Portal</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'portal-customers' %}">Klienci</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'management-dashboard' %}">Panel</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'management-questions' %}">Pytania</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'management-templates' %}">Szablony</a>
+              <a class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-900" href="{% url 'management-assignments' %}">Ankiety</a>
+              {% endif %}
+              <form method="post" action="{% url 'logout' %}" class="m-0 pt-1">
+                {% csrf_token %}
+                <button type="submit" class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">Wyloguj</button>
+              </form>
+              <span class="px-1 pt-1 text-center text-xs italic text-[color:var(--uv-navy)]">Zalogowany: {{ request.user.username }}</span>
+            </div>
+          </div>
+        </details>
+        <div class="hidden items-center gap-2 sm:gap-3 lg:flex">
           {% if is_scraper_section %}
           <a class="uv-nav-link" href="{% url 'portal-home' %}">Portal</a>
           <a class="uv-nav-link" href="{% url 'portal-customers' %}">Klienci</a>
@@ -34,7 +68,7 @@
           <a class="uv-nav-link" href="{% url 'scraper-candidates' %}">Leady</a>
           {% elif is_portal_section %}
           <a class="uv-nav-link" href="{% url 'portal-home' %}">Portal</a>
-          <a class="uv-nav-link" href="{% url 'portal-users' %}">Użytkownicy</a>
+          <a class="uv-nav-link" href="{% url 'portal-users' %}">U&#380;ytkownicy</a>
           <a class="uv-nav-link" href="{% url 'portal-customers' %}">Klienci</a>
           <a class="uv-nav-link" href="{% url 'management-dashboard' %}">Ankiety</a>
           <a class="uv-nav-link" href="{% url 'scraper-home' %}">Scraper</a>
