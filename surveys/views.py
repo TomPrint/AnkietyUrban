@@ -1124,6 +1124,7 @@ def _node_can_end_survey(node: TemplateNode) -> bool:
 
 def _consent_state_from_session(session: SurveySession):
     return {
+        "consent_rodo_clause": bool(session.consent_rodo_clause),
         "consent_personal_data": bool(session.consent_personal_data),
         "consent_data_administration": bool(session.consent_data_administration),
         "consent_contact_results": bool(session.consent_contact_results),
@@ -1133,6 +1134,7 @@ def _consent_state_from_session(session: SurveySession):
 
 def _consent_state_from_post(request: HttpRequest):
     return {
+        "consent_rodo_clause": request.POST.get("consent_rodo_clause") == "on",
         "consent_personal_data": request.POST.get("consent_personal_data") == "on",
         "consent_data_administration": request.POST.get("consent_data_administration") == "on",
         "consent_contact_results": request.POST.get("consent_contact_results") == "on",
@@ -1832,6 +1834,17 @@ def template_demo(request: HttpRequest, template_id: int) -> HttpResponse:
             answers[str(node.id)] = _json_safe_value(value)
             next_node = _resolve_next_node(node, value)
             if next_node is None:
+                consent_state = _consent_state_from_post(request)
+                if not consent_state["consent_rodo_clause"]:
+                    context = _template_demo_context(
+                        template=template,
+                        node=node,
+                        form=form,
+                        state=state,
+                        consent_error="Przed zapisaniem ankiety należy zaakceptować klauzulę informacyjną RODO.",
+                        consent_state=consent_state,
+                    )
+                    return render(request, "survey/fill_survey.html", context)
                 request.session.pop(state_key, None)
                 return redirect("management-template-demo-done", template_id=template.id)
 
@@ -1852,31 +1865,46 @@ def template_demo(request: HttpRequest, template_id: int) -> HttpResponse:
         if stored is not None:
             _apply_demo_answer_initial(form, node, stored)
 
+    context = _template_demo_context(template=template, node=node, form=form, state=state)
+    return render(request, "survey/fill_survey.html", context)
+
+
+def _template_demo_context(
+    *,
+    template: SurveyTemplate,
+    node: TemplateNode,
+    form: DynamicQuestionForm,
+    state: dict,
+    consent_error: str = "",
+    consent_state: dict | None = None,
+) -> dict:
     has_previous_node = bool(state.get("path"))
     demo_customer = SimpleNamespace(company_name=f"DEMO: {template.name}")
     demo_session = SimpleNamespace(
         customer=demo_customer,
         get_status_display=lambda: "Demo",
     )
-    context = {
-        "session": demo_session,
-        "node": node,
-        "question": node.question,
-        "form": form,
-        "consent_required_on_this_node": False,
-        "consent_error": "",
-        "consent_state": {
+    if consent_state is None:
+        consent_state = {
+            "consent_rodo_clause": False,
             "consent_personal_data": False,
             "consent_data_administration": False,
             "consent_contact_results": False,
             "consent_marketing": False,
-        },
+        }
+    return {
+        "session": demo_session,
+        "node": node,
+        "question": node.question,
+        "form": form,
+        "consent_required_on_this_node": _node_can_end_survey(node),
+        "consent_error": consent_error,
+        "consent_state": consent_state,
         "gdpr_admin_name": "Demo",
         "gdpr_admin_city": "Demo",
         "has_previous_node": has_previous_node,
         "session_customer_name": f"DEMO: {template.name}",
     }
-    return render(request, "survey/fill_survey.html", context)
 
 
 @staff_required
@@ -2218,17 +2246,13 @@ class SurveyByTokenView(View):
         next_node = _resolve_next_node(node, value)
         if next_node is None:
             consent_state = _consent_state_from_post(request)
-            if not (
-                consent_state["consent_personal_data"]
-                and consent_state["consent_data_administration"]
-                and consent_state["consent_contact_results"]
-            ):
+            if not consent_state["consent_rodo_clause"]:
                 return self._render_form(
                     request,
                     session=session,
                     node=node,
                     form=form,
-                    consent_error="Przed zapisaniem ankiety naleĹĽy zaakceptowaÄ‡ wymagane zgody.",
+                    consent_error="Przed zapisaniem ankiety należy zaakceptować klauzulę informacyjną RODO.",
                     consent_state=consent_state,
                 )
 
@@ -2244,10 +2268,11 @@ class SurveyByTokenView(View):
 
         if next_node is None:
             consent_state = _consent_state_from_post(request)
-            session.consent_personal_data = consent_state["consent_personal_data"]
-            session.consent_data_administration = consent_state["consent_data_administration"]
-            session.consent_contact_results = consent_state["consent_contact_results"]
-            session.consent_marketing = consent_state["consent_marketing"]
+            session.consent_rodo_clause = consent_state["consent_rodo_clause"]
+            session.consent_personal_data = consent_state["consent_rodo_clause"]
+            session.consent_data_administration = False
+            session.consent_contact_results = False
+            session.consent_marketing = False
             session.consent_submitted_at = timezone.now()
             snapshot = None
             if session.first_saved_at is not None:
@@ -2260,6 +2285,7 @@ class SurveyByTokenView(View):
                         "last_saved_again_at",
                         "submitted_at",
                         "current_node",
+                        "consent_rodo_clause",
                         "consent_personal_data",
                         "consent_data_administration",
                         "consent_contact_results",
@@ -2279,6 +2305,7 @@ class SurveyByTokenView(View):
                         "first_saved_at",
                         "submitted_at",
                         "current_node",
+                        "consent_rodo_clause",
                         "consent_personal_data",
                         "consent_data_administration",
                         "consent_contact_results",

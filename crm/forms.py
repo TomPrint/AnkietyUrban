@@ -1,12 +1,12 @@
 from django import forms
 
-from .models import Customer
+from .models import Customer, normalize_nip
 
 
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ["company_name", "district", "address", "website", "contact_person", "email", "telephone"]
+        fields = ["company_name", "district", "address", "website", "nip", "contact_person", "email", "telephone"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -15,6 +15,7 @@ class CustomerForm(forms.ModelForm):
             "district": "Dzielnica",
             "address": "Adres",
             "website": "Strona WWW",
+            "nip": "NIP",
             "contact_person": "Osoba kontaktowa",
             "email": "E-mail",
             "telephone": "Telefon",
@@ -34,3 +35,17 @@ class CustomerForm(forms.ModelForm):
         if dupe_qs.exists():
             raise forms.ValidationError("Klient o tej nazwie już istnieje.")
         return company_name
+
+    def clean_nip(self):
+        raw_nip = (self.cleaned_data.get("nip") or "").strip()
+        if not raw_nip:
+            return ""
+        if not raw_nip.isdigit() or len(raw_nip) != 10:
+            raise forms.ValidationError("NIP musi składać się z 10 cyfr.")
+        nip = normalize_nip(raw_nip)
+        dupe_qs = Customer.objects.filter(is_archived=False, nip=nip)
+        if self.instance and self.instance.pk:
+            dupe_qs = dupe_qs.exclude(pk=self.instance.pk)
+        if dupe_qs.exists():
+            raise forms.ValidationError("Klient z takim numerem NIP już istnieje.")
+        return nip

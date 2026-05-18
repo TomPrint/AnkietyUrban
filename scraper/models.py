@@ -21,6 +21,7 @@ class LeadCandidate(models.Model):
     normalized_name = models.CharField(max_length=255, db_index=True)
     district = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=500, blank=True)
+    nip = models.CharField(max_length=10, blank=True, db_index=True)
     email = models.EmailField(blank=True)
     telephone = models.CharField(max_length=50, blank=True)
     reason = models.TextField(blank=True)

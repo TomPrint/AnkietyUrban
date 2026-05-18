@@ -180,6 +180,7 @@ class SurveySession(models.Model):
     consent_data_administration = models.BooleanField(default=False)
     consent_contact_results = models.BooleanField(default=False)
     consent_marketing = models.BooleanField(default=False)
+    consent_rodo_clause = models.BooleanField(default=False)
     consent_submitted_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

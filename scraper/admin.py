@@ -7,6 +7,7 @@ from .models import LeadCandidate
 class LeadCandidateAdmin(admin.ModelAdmin):
     list_display = (
         "company_name",
+        "nip",
         "status",
         "confidence",
         "district",
@@ -15,4 +16,4 @@ class LeadCandidateAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("status", "source", "district")
-    search_fields = ("company_name", "normalized_name", "district", "reason", "website")
+    search_fields = ("company_name", "normalized_name", "nip", "district", "reason", "website")

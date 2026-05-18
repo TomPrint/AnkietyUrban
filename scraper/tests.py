@@ -52,12 +52,43 @@ class ScraperLeadCandidateTests(TestCase):
                 "district": "MokotĂłw",
                 "address": "ul. Testowa 4, Warszawa",
                 "website": "https://test.example.pl",
+                "nip": "",
                 "contact_person": "",
                 "email": "",
                 "telephone": "",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_customer_form_validates_optional_nip(self):
+        valid_form = CustomerForm(
+            data={
+                "company_name": "Spoldzielnia Mieszkaniowa NIP",
+                "district": "",
+                "address": "",
+                "website": "",
+                "nip": "1234567890",
+                "contact_person": "",
+                "email": "",
+                "telephone": "",
+            }
+        )
+        self.assertTrue(valid_form.is_valid(), valid_form.errors)
+
+        invalid_form = CustomerForm(
+            data={
+                "company_name": "Spoldzielnia Mieszkaniowa Bledny NIP",
+                "district": "",
+                "address": "",
+                "website": "",
+                "nip": "12345ABC90",
+                "contact_person": "",
+                "email": "",
+                "telephone": "",
+            }
+        )
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn("nip", invalid_form.errors)
 
     @patch("scraper.views.generate_candidates_payload")
     def test_gemini_generate_imports_candidates(self, mocked_generate):
@@ -68,6 +99,7 @@ class ScraperLeadCandidateTests(TestCase):
                         "nazwa": "SpĂłĹ‚dzielnia Mieszkaniowa Orion",
                         "dzielnica": "UrsynĂłw",
                         "adres": "ul. PrzykĹ‚adowa 10, 02-001 Warszawa",
+                        "nip": "1234567890",
                         "email": "kontakt@orion.example.pl",
                         "telefon": "+48 22 123 45 67",
                         "powod": "Oficjalna strona wskazuje na spĂłĹ‚dzielniÄ™ mieszkaniowÄ….",
@@ -99,6 +131,7 @@ class ScraperLeadCandidateTests(TestCase):
         lead = LeadCandidate.objects.get(source="gemini")
         self.assertEqual(lead.district, "UrsynĂłw")
         self.assertEqual(lead.address, "ul. PrzykĹ‚adowa 10, 02-001 Warszawa")
+        self.assertEqual(lead.nip, "1234567890")
         self.assertEqual(lead.email, "kontakt@orion.example.pl")
         self.assertEqual(lead.telephone, "+48 22 123 45 67")
         self.assertEqual(lead.website, "https://orion.example.pl")
@@ -113,6 +146,7 @@ class ScraperLeadCandidateTests(TestCase):
                         "nazwa": "SpĂłĹ‚dzielnia Mieszkaniowa Nova",
                         "dzielnica": "Bemowo",
                         "adres": "ul. Nova 5, 01-234 Warszawa",
+                        "nip": "9876543210",
                         "email": "biuro@nova.pl",
                         "telefon": "22 123 45 67",
                         "powod": "Wynik Tavily z oficjalnej strony kontaktowej.",
@@ -144,6 +178,7 @@ class ScraperLeadCandidateTests(TestCase):
         self.assertRedirects(response, reverse("scraper-candidates"))
         lead = LeadCandidate.objects.get(source="tavily")
         self.assertEqual(lead.company_name, "SpĂłĹ‚dzielnia Mieszkaniowa Nova")
+        self.assertEqual(lead.nip, "9876543210")
         self.assertEqual(lead.website, "https://nova.pl")
         mocked_search.assert_called_once()
 
@@ -189,6 +224,26 @@ class ScraperLeadCandidateTests(TestCase):
         self.assertIsNotNone(leads[0].duplicate_customer)
         self.assertEqual(leads[1].duplicate_candidate_id, leads[0].id)
 
+    def test_import_marks_duplicate_customer_by_nip(self):
+        customer = Customer.objects.create(company_name="Inna Nazwa", nip="1112223344")
+        payload = json.dumps(
+            [
+                {
+                    "nazwa": "Nowa Nazwa",
+                    "nip": "111-222-33-44",
+                    "powod": "Ten sam NIP.",
+                    "confidence": 0.9,
+                }
+            ],
+            ensure_ascii=False,
+        )
+
+        import_gemini_candidates(payload)
+
+        lead = LeadCandidate.objects.get()
+        self.assertEqual(lead.nip, "1112223344")
+        self.assertEqual(lead.duplicate_customer_id, customer.id)
+
     def test_approving_candidate_creates_customer_with_contact_fields_and_website(self):
         lead = LeadCandidate.objects.create(
             source="tavily",
@@ -196,6 +251,7 @@ class ScraperLeadCandidateTests(TestCase):
             normalized_name="SPOLDZIELNIA MIESZKANIOWA BETA",
             district="Wola",
             address="ul. Beta 12, Warszawa",
+            nip="2223334455",
             website="https://beta.pl",
             email="kontakt@beta.pl",
             telephone="22 700 80 90",
@@ -211,6 +267,7 @@ class ScraperLeadCandidateTests(TestCase):
         self.assertIsNotNone(customer)
         self.assertEqual(customer.district, "Wola")
         self.assertEqual(customer.address, "ul. Beta 12, Warszawa")
+        self.assertEqual(customer.nip, "2223334455")
         self.assertEqual(customer.website, "https://beta.pl")
         self.assertEqual(customer.email, "kontakt@beta.pl")
         self.assertEqual(customer.telephone, "22 700 80 90")
@@ -240,6 +297,23 @@ class ScraperLeadCandidateTests(TestCase):
         self.assertEqual(customer.email, "biuro@gamma.pl")
         self.assertEqual(customer.telephone, "22 999 88 77")
         self.assertEqual(Customer.objects.filter(company_name="SpĂłĹ‚dzielnia Mieszkaniowa Gamma").count(), 1)
+
+    def test_approving_candidate_with_existing_customer_nip_is_blocked(self):
+        Customer.objects.create(company_name="Istniejacy klient", nip="5556667788")
+        lead = LeadCandidate.objects.create(
+            source="gemini",
+            company_name="Nowy kandydat",
+            normalized_name="NOWY KANDYDAT",
+            nip="5556667788",
+        )
+
+        response = self.client.post(reverse("scraper-candidate-approve", args=[lead.id]), follow=True)
+
+        self.assertContains(response, "Klient z takim numerem NIP już istnieje")
+        lead.refresh_from_db()
+        self.assertEqual(lead.status, LeadCandidate.STATUS_PENDING)
+        self.assertIsNone(lead.approved_customer)
+        self.assertEqual(Customer.objects.count(), 1)
 
     def test_reject_candidate_marks_status(self):
         lead = LeadCandidate.objects.create(

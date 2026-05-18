@@ -66,39 +66,20 @@
   </section>
 
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
-    <h2 class="text-xl font-semibold">Zgody</h2>
+    <h2 class="text-xl font-semibold">Klauzula RODO</h2>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Przetwarzanie danych osobowych</p>
+        <p class="text-sm text-slate-500">Klauzula informacyjna</p>
         <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_personal_data %}Tak{% else %}Nie{% endif %}
-        </p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Informacja o administratorze danych</p>
-        <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_data_administration %}Tak{% else %}Nie{% endif %}
-        </p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Kontakt w sprawie wyników</p>
-        <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_contact_results %}Tak{% else %}Nie{% endif %}
-        </p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p class="text-sm text-slate-500">Marketing (opcjonalnie)</p>
-        <p class="mt-1 text-lg font-semibold">
-          {% if session.consent_marketing %}Tak{% else %}Nie{% endif %}
+          {% if session.consent_rodo_clause %}Tak{% else %}Nie{% endif %}
         </p>
       </article>
       <article class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 lg:col-span-2">
-        <p class="text-sm text-slate-500">Data udzielenia zgód</p>
+        <p class="text-sm text-slate-500">Data zaakceptowania klauzuli</p>
         <p class="mt-1 text-lg font-semibold">{{ session.consent_submitted_at|default:"-" }}</p>
       </article>
     </div>
   </section>
-
   <section class="mt-8 rounded-2xl bg-white p-6 shadow">
     <h2 class="text-xl font-semibold">Zapisane wersje</h2>
     <p class="mt-2 text-sm text-slate-500">Najnowsze zapisane odpowiedzi są pokazane jako pierwsze.</p>
@@ -209,7 +190,4 @@
   })();
 </script>
 {% endblock %}
-
-
-
 

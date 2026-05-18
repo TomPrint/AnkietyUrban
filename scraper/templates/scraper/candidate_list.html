@@ -3,6 +3,61 @@
 {% block title %}Kandydaci | Scraper Urban Vision{% endblock %}
 
 {% block content %}
+<style>
+  .scraper-table-scroll {
+    overflow-x: visible;
+  }
+
+  .scraper-candidates-table {
+    table-layout: fixed;
+  }
+
+  .scraper-candidates-table th,
+  .scraper-candidates-table td {
+    overflow-wrap: anywhere;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+  }
+
+  .scraper-candidates-table .col-name { width: 12%; }
+  .scraper-candidates-table .col-source { width: 4.5%; }
+  .scraper-candidates-table .col-search { width: 7%; }
+  .scraper-candidates-table .col-decision { width: 7%; }
+  .scraper-candidates-table .col-location { width: 9%; }
+  .scraper-candidates-table .col-nip { width: 6.5%; }
+  .scraper-candidates-table .col-email { width: 9%; }
+  .scraper-candidates-table .col-phone { width: 5.5%; }
+  .scraper-candidates-table .col-reason { width: 11%; }
+  .scraper-candidates-table .col-website { width: 8%; }
+  .scraper-candidates-table .col-duplicates { width: 9.5%; }
+  .scraper-candidates-table .col-actions { width: 8%; }
+
+  .scraper-candidates-table .actions-wrap,
+  .scraper-candidates-table .actions-wrap button,
+  .scraper-candidates-table .actions-wrap input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .scraper-table-scroll {
+      margin-left: -1rem;
+      margin-right: -1rem;
+      overflow-x: auto;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .scraper-candidates-table {
+      min-width: 1040px;
+    }
+
+    .scraper-candidates-table .col-source {
+      width: 64px;
+    }
+  }
+</style>
 <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
   <section class="rounded-2xl bg-white p-6 shadow-lg">
     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -51,12 +106,26 @@
   {% endif %}
 
   <section class="mt-8 rounded-2xl bg-white p-4 shadow sm:p-5">
-    <div class="overflow-x-auto">
-      <table class="uv-data-table w-full min-w-[1080px] text-left text-[12px] leading-5 align-top">
+    <div class="scraper-table-scroll">
+      <table class="uv-data-table scraper-candidates-table w-full text-left text-[11px] leading-4 align-top">
+        <colgroup>
+          <col class="col-name">
+          <col class="col-source">
+          <col class="col-search">
+          <col class="col-decision">
+          <col class="col-location">
+          <col class="col-nip">
+          <col class="col-email">
+          <col class="col-phone">
+          <col class="col-reason">
+          <col class="col-website">
+          <col class="col-duplicates">
+          <col class="col-actions">
+        </colgroup>
         <thead class="text-slate-500">
           <tr>
             {% for header in header_columns %}
-            <th class="py-1.5 {% if header.key == 'company_name' %}min-w-[112px]{% elif header.key == 'source' %}whitespace-nowrap min-w-[54px]{% elif header.key == 'created_at' %}whitespace-nowrap min-w-[92px]{% elif header.key == 'reviewed_at' %}whitespace-nowrap min-w-[84px]{% elif header.key == 'district' %}min-w-[72px]{% elif header.key == 'email' %}min-w-[92px]{% elif header.key == 'telephone' %}min-w-[68px]{% elif header.key == 'reason' %}min-w-[92px]{% elif header.key == 'website' %}min-w-[74px]{% elif header.key == 'confidence' %}whitespace-nowrap min-w-[50px]{% elif header.key == 'duplicate_sort' %}min-w-[84px]{% elif header.key == 'status_sort' %}min-w-[112px] text-center{% endif %}">
+            <th class="py-1.5 {% if header.key == 'status_sort' %}text-center{% endif %}">
               {% if show_filters %}
               <a class="inline-flex items-center gap-1 hover:text-slate-900 {% if header.key == 'status_sort' %}justify-center{% endif %}" href="{{ header.url }}">
                 <span>{{ header.label }}</span>
@@ -77,17 +146,17 @@
             <td class="py-2 align-top">
               <div class="font-semibold text-slate-900">{{ candidate.company_name }}</div>
               {% if candidate.status == "approved" and candidate.approved_customer %}
-              <div class="mt-1 text-[11px] leading-4 text-emerald-700">Klient: {{ candidate.approved_customer.company_name }}</div>
+              <div class="mt-1 text-[10px] leading-4 text-emerald-700">Klient: {{ candidate.approved_customer.company_name }}</div>
               {% elif candidate.status == "rejected" %}
-              <div class="mt-1 text-[11px] leading-4 text-rose-700">{{ candidate.rejection_reason|default:"Odrzucone przez operatora." }}</div>
+              <div class="mt-1 text-[10px] leading-4 text-rose-700">{{ candidate.rejection_reason|default:"Odrzucone przez operatora." }}</div>
               {% endif %}
             </td>
-            <td class="py-2 align-top whitespace-nowrap"><span class="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-700">{{ candidate.source|title }}</span></td>
-            <td class="py-2 align-top whitespace-nowrap">
+            <td class="py-1.5 align-top"><span class="inline-block whitespace-nowrap rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-700">{{ candidate.source|title }}</span></td>
+            <td class="py-1.5 align-top">
               {{ candidate.created_at|date:"Y-m-d" }}
               <div class="text-[10px] leading-4 text-slate-500">{{ candidate.created_at|date:"H:i" }}</div>
             </td>
-            <td class="py-2 align-top whitespace-nowrap">
+            <td class="py-1.5 align-top">
               {% if candidate.status == "approved" %}
               <span class="text-emerald-700">{{ candidate.reviewed_at|date:"Y-m-d"|default:"-" }}</span>
               <div class="text-[10px] leading-4 text-slate-500">{{ candidate.reviewed_at|date:"H:i" }}</div>
@@ -98,72 +167,80 @@
               <span class="text-slate-400">-</span>
               {% endif %}
             </td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top">
               <div>{{ candidate.district|default:"-" }}</div>
-              <div class="mt-1 max-w-[92px] text-[10px] leading-4 text-slate-500">{{ candidate.address|default:"-" }}</div>
+              <div class="mt-1 text-[10px] leading-4 text-slate-500">{{ candidate.address|default:"-" }}</div>
             </td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top">
+              <span class="text-slate-700">{{ candidate.nip|default:"-" }}</span>
+            </td>
+            <td class="py-1.5 align-top">
               {% if candidate.email %}
               <a class="break-all text-red-600 hover:underline" href="mailto:{{ candidate.email }}">{{ candidate.email }}</a>
               {% else %}
               <span class="text-slate-400">-</span>
               {% endif %}
             </td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top">
               <span class="text-slate-700">{{ candidate.telephone|default:"-" }}</span>
             </td>
-            <td class="py-2 align-top max-w-[120px] text-slate-700">{{ candidate.reason|default:"-" }}</td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top text-slate-700">{{ candidate.reason|default:"-" }}</td>
+            <td class="py-1.5 align-top">
               {% if candidate.website %}
               <a class="break-all text-red-600 hover:underline" href="{{ candidate.website }}" target="_blank" rel="noreferrer">{{ candidate.website }}</a>
               {% else %}
               -
               {% endif %}
             </td>
-            <td class="py-2 align-top whitespace-nowrap">{{ candidate.confidence|default:"-" }}</td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top">
               {% if candidate.duplicate_customer %}
               <div class="text-[10px] leading-4 text-amber-700">Istniej&#261;cy klient:</div>
               <div class="font-semibold text-amber-800">{{ candidate.duplicate_customer.company_name }}</div>
+              {% if candidate.duplicate_customer.nip %}
+              <div class="text-[10px] leading-4 text-amber-700">NIP: {{ candidate.duplicate_customer.nip }}</div>
+              {% endif %}
               {% elif candidate.duplicate_candidate %}
               <div class="text-[10px] leading-4 text-amber-700">Duplikat kandydata ({{ candidate.duplicate_candidate.source|title }}):</div>
               <div class="font-semibold text-amber-800">{{ candidate.duplicate_candidate.company_name }}</div>
+              {% if candidate.duplicate_candidate.nip %}
+              <div class="text-[10px] leading-4 text-amber-700">NIP: {{ candidate.duplicate_candidate.nip }}</div>
+              {% endif %}
               {% else %}
               <span class="text-slate-400">Brak</span>
               {% endif %}
             </td>
-            <td class="py-2 align-top">
+            <td class="py-1.5 align-top">
               {% if candidate.status == "pending" %}
-              <div class="mx-auto flex w-[104px] flex-col gap-1">
+              <div class="actions-wrap mx-auto flex flex-col gap-1">
                 <form method="post" action="{% url 'scraper-candidate-approve' candidate.id %}">
                   {% csrf_token %}
-                  <button class="w-full rounded-lg bg-emerald-600 px-1.5 py-1 text-[11px] font-semibold text-white" type="submit">Zatwierd&#378;</button>
+                  <button class="rounded bg-emerald-600 px-1 py-1 text-[10px] font-semibold text-white" type="submit">Zatwierd&#378;</button>
                 </form>
                 <form method="post" action="{% url 'scraper-candidate-reject' candidate.id %}" class="space-y-1">
                   {% csrf_token %}
                   <input
                     type="text"
                     name="reason"
-                    class="w-full rounded border border-slate-300 px-1.5 py-1 text-[11px]"
+                    class="rounded border border-slate-300 px-1 py-1 text-[10px]"
                     placeholder="Pow&oacute;d odrzucenia"
                   >
-                  <button class="w-full rounded-lg border border-rose-300 px-1.5 py-1 text-[11px] font-semibold text-rose-700" type="submit">Odrzu&#263;</button>
+                  <button class="rounded border border-rose-300 px-1 py-1 text-[10px] font-semibold text-rose-700" type="submit">Odrzu&#263;</button>
                 </form>
               </div>
               {% elif candidate.status == "approved" %}
-              <div class="mx-auto flex w-[104px] justify-center">
+              <div class="actions-wrap mx-auto flex justify-center">
                 <span class="rounded bg-emerald-100 px-1.5 py-1 text-[10px] font-semibold text-emerald-800">Zatwierdzony</span>
               </div>
               {% else %}
-              <div class="mx-auto flex w-[104px] flex-col items-center gap-1">
+              <div class="actions-wrap mx-auto flex flex-col items-center gap-1">
                 <span class="rounded bg-rose-100 px-1.5 py-1 text-[10px] font-semibold text-rose-800">Odrzucony</span>
                 <form method="post" action="{% url 'scraper-candidate-reopen' candidate.id %}" class="w-full">
                   {% csrf_token %}
-                  <button class="w-full rounded-lg border border-sky-300 px-1.5 py-1 text-[11px] font-semibold text-sky-700" type="submit">Ponownie</button>
+                  <button class="rounded border border-sky-300 px-1 py-1 text-[10px] font-semibold text-sky-700" type="submit">Ponownie</button>
                 </form>
                 <form method="post" action="{% url 'scraper-candidate-delete' candidate.id %}" class="w-full">
                   {% csrf_token %}
-                  <button class="w-full rounded-lg border border-slate-300 px-1.5 py-1 text-[11px] font-semibold text-slate-700" type="submit">Usu&#324;</button>
+                  <button class="rounded border border-slate-300 px-1 py-1 text-[10px] font-semibold text-slate-700" type="submit">Usu&#324;</button>
                 </form>
               </div>
               {% endif %}

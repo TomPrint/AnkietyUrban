@@ -1,5 +1,15 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+
+
+def normalize_nip(value: str) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def validate_nip(value: str) -> None:
+    if value and not (value.isdigit() and len(value) == 10):
+        raise ValidationError("NIP musi składać się z 10 cyfr.")
 
 
 class Customer(models.Model):
@@ -7,6 +17,7 @@ class Customer(models.Model):
     district = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=500, blank=True)
     website = models.URLField(blank=True)
+    nip = models.CharField(max_length=10, blank=True, db_index=True, validators=[validate_nip])
     contact_person = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     telephone = models.CharField(max_length=50, blank=True)

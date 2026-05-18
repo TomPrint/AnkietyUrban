@@ -37,6 +37,7 @@
             <th class="py-2">Dzielnica</th>
             <th class="py-2">Adres</th>
             <th class="py-2">WWW</th>
+            <th class="py-2">NIP</th>
             <th class="py-2">Kontakt</th>
             <th class="py-2">Email</th>
             <th class="py-2">Telefon</th>
@@ -60,6 +61,7 @@
               -
               {% endif %}
             </td>
+            <td class="py-2">{{ c.nip|default:"-" }}</td>
             <td class="py-2">{{ c.contact_person|default:"-" }}</td>
             <td class="py-2 break-all">{{ c.email|default:"-" }}</td>
             <td class="py-2">{{ c.telephone|default:"-" }}</td>
@@ -80,7 +82,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="10" class="py-4 text-slate-500">Brak klientow.</td></tr>
+          <tr><td colspan="11" class="py-4 text-slate-500">Brak klientow.</td></tr>
           {% endfor %}
         </tbody>
       </table>

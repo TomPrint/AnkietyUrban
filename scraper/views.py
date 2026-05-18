@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 from .forms import GeminiGenerateForm, LeadCandidateFilterForm, LeadCandidateRejectForm, TavilySearchForm
 from .gemini import GeminiCandidateGenerationError, generate_candidates_payload
 from .models import LeadCandidate
-from .services import approve_candidate, import_gemini_candidates, import_tavily_candidates
+from .services import DuplicateCustomerNipError, approve_candidate, import_gemini_candidates, import_tavily_candidates
 from .tavily import TavilyCandidateGenerationError, search_tavily_candidates
 
 
@@ -21,11 +21,11 @@ SORTABLE_COLUMNS = {
     "created_at": ["created_at", "id"],
     "reviewed_at": ["reviewed_at", "id"],
     "district": ["district", "company_name", "id"],
+    "nip": ["nip", "company_name", "id"],
     "email": ["email", "company_name", "id"],
     "telephone": ["telephone", "company_name", "id"],
     "reason": ["reason", "company_name", "id"],
     "website": ["website", "company_name", "id"],
-    "confidence": ["confidence", "id"],
     "duplicate_sort": ["duplicate_sort", "company_name", "id"],
     "status_sort": ["status_sort", "company_name", "id"],
 }
@@ -34,14 +34,14 @@ SORTABLE_COLUMNS = {
 HEADER_COLUMNS = [
     ("company_name", "Nazwa"),
     ("source", "Źródło"),
-    ("created_at", "Data wyszukania"),
-    ("reviewed_at", "Data decyzji"),
+    ("created_at", "Wyszukanie"),
+    ("reviewed_at", "Decyzja"),
     ("district", "Lokalizacja"),
+    ("nip", "NIP"),
     ("email", "Email"),
     ("telephone", "Telefon"),
     ("reason", "Powód"),
     ("website", "WWW"),
-    ("confidence", "Trafność"),
     ("duplicate_sort", "Duplikaty"),
     ("status_sort", "Akcje"),
 ]
@@ -226,6 +226,7 @@ def candidate_list(request):
                 Q(company_name__icontains=q)
                 | Q(district__icontains=q)
                 | Q(address__icontains=q)
+                | Q(nip__icontains=q)
                 | Q(email__icontains=q)
                 | Q(telephone__icontains=q)
                 | Q(reason__icontains=q)
@@ -296,7 +297,11 @@ def candidate_approve(request, candidate_id: int):
         messages.success(request, "Ten kandydat jest juz zatwierdzony.")
         return redirect("scraper-candidates")
 
-    approve_candidate(candidate, request.user)
+    try:
+        approve_candidate(candidate, request.user)
+    except DuplicateCustomerNipError as exc:
+        messages.error(request, str(exc))
+        return redirect("scraper-candidates")
     messages.success(request, f"Zatwierdzono kandydata: {candidate.company_name}.")
     return redirect("scraper-candidates")
 

@@ -5,9 +5,13 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 
-from crm.models import Customer
+from crm.models import Customer, normalize_nip
 
 from .models import LeadCandidate
+
+
+class DuplicateCustomerNipError(RuntimeError):
+    pass
 
 POLISH_TRANSLATION = str.maketrans(
     {
@@ -102,6 +106,7 @@ def parse_candidate_payload(payload_text: str):
             "company_name": company_name,
             "district": str(_first_present(item, ["dzielnica", "district"])).strip(),
             "address": str(_first_present(item, ["adres", "address"])).strip(),
+            "nip": normalize_nip(_first_present(item, ["nip", "NIP", "tax_id", "vat_id"])),
             "email": str(_first_present(item, ["email", "adres_email", "e_mail"])).strip(),
             "telephone": str(_first_present(item, ["telefon", "phone", "telephone"])).strip(),
             "reason": str(_first_present(item, ["powod", "pow\u00f3d", "reason"])).strip(),
@@ -121,16 +126,29 @@ def import_candidates(payload_text: str, source: str):
         normalize_company_name(customer.company_name): customer
         for customer in Customer.objects.filter(is_archived=False)
     }
+    existing_customers_by_nip = {
+        customer.nip: customer
+        for customer in Customer.objects.filter(is_archived=False).exclude(nip="")
+    }
     existing_candidates = {
         candidate.normalized_name: candidate
         for candidate in LeadCandidate.objects.all().order_by("created_at", "pk")
+    }
+    existing_candidates_by_nip = {
+        candidate.nip: candidate
+        for candidate in LeadCandidate.objects.exclude(nip="").order_by("created_at", "pk")
     }
 
     created = []
     for item in candidates:
         normalized_name = normalize_company_name(item["company_name"])
-        duplicate_customer = existing_customers.get(normalized_name)
-        duplicate_candidate = existing_candidates.get(normalized_name)
+        nip = item["nip"] if len(item["nip"]) == 10 else ""
+        duplicate_customer = existing_customers_by_nip.get(nip) if nip else None
+        duplicate_candidate = existing_candidates_by_nip.get(nip) if nip else None
+        if duplicate_customer is None:
+            duplicate_customer = existing_customers.get(normalized_name)
+        if duplicate_candidate is None:
+            duplicate_candidate = existing_candidates.get(normalized_name)
 
         lead = LeadCandidate.objects.create(
             source=source,
@@ -138,6 +156,7 @@ def import_candidates(payload_text: str, source: str):
             normalized_name=normalized_name,
             district=item["district"],
             address=item["address"],
+            nip=nip,
             email=item["email"],
             telephone=item["telephone"],
             reason=item["reason"],
@@ -148,6 +167,8 @@ def import_candidates(payload_text: str, source: str):
             duplicate_candidate=duplicate_candidate,
         )
         existing_candidates.setdefault(normalized_name, lead)
+        if nip:
+            existing_candidates_by_nip.setdefault(nip, lead)
         created.append(lead)
 
     return {
@@ -167,12 +188,18 @@ def import_tavily_candidates(payload_text: str):
 
 
 def approve_candidate(candidate: LeadCandidate, user):
+    if candidate.nip:
+        existing_customer = Customer.objects.filter(is_archived=False, nip=candidate.nip).first()
+        if existing_customer is not None:
+            raise DuplicateCustomerNipError("Klient z takim numerem NIP już istnieje.")
+
     customer = candidate.duplicate_customer
     if customer is None:
         customer = Customer.objects.create(
             company_name=candidate.company_name,
             district=candidate.district,
             address=candidate.address,
+            nip=candidate.nip,
             website=candidate.website,
             email=candidate.email,
             telephone=candidate.telephone,
@@ -188,6 +215,9 @@ def approve_candidate(candidate: LeadCandidate, user):
         if candidate.website and not customer.website:
             customer.website = candidate.website
             updated_fields.append("website")
+        if candidate.nip and not customer.nip:
+            customer.nip = candidate.nip
+            updated_fields.append("nip")
         if candidate.email and not customer.email:
             customer.email = candidate.email
             updated_fields.append("email")

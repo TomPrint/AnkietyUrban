@@ -30,6 +30,10 @@ def _candidate_schema(max_candidates: int):
                 "type": "string",
                 "description": "Adres siedziby lub adres kontaktowy, jesli zostal znaleziony. Pusty string jesli nieznany.",
             },
+            "nip": {
+                "type": "string",
+                "description": "Numer NIP podmiotu jako 10 cyfr bez separatorow, jesli zostal znaleziony. Pusty string jesli nieznany.",
+            },
             "email": {
                 "type": "string",
                 "description": "Adres e-mail kontaktowy, jesli zostal znaleziony. Pusty string jesli nieznany.",
@@ -53,8 +57,8 @@ def _candidate_schema(max_candidates: int):
                 "maximum": 1,
             },
         },
-        "required": ["nazwa", "dzielnica", "adres", "email", "telefon", "powod", "strona_www", "confidence"],
-        "propertyOrdering": ["nazwa", "dzielnica", "adres", "email", "telefon", "powod", "strona_www", "confidence"],
+        "required": ["nazwa", "dzielnica", "adres", "nip", "email", "telefon", "powod", "strona_www", "confidence"],
+        "propertyOrdering": ["nazwa", "dzielnica", "adres", "nip", "email", "telefon", "powod", "strona_www", "confidence"],
         "additionalProperties": False,
     }
     return {
@@ -98,7 +102,9 @@ def _build_prompt(search_goal: str, city: str, district: str, max_candidates: in
         f"Maksymalna liczba kandydatow: {max_candidates}\n"
         f"{extra_block}"
         "Preferuj oficjalne strony organizacji i zrodla potwierdzajace, ze podmiot moze byc zwiazany ze spoldzielnia mieszkaniowa. "
-        "Jesli znajdziesz adres siedziby, e-mail kontaktowy lub telefon kontaktowy, zwroc je. Pomijaj firmy deweloperskie, agencje nieruchomosci i przypadkowe wyniki niepasujace do segmentu.\n\n"
+        "Jesli znajdziesz adres siedziby, NIP, e-mail kontaktowy lub telefon kontaktowy, zwroc je. "
+        "NIP zwracaj jako 10 cyfr bez spacji i myslnikow. "
+        "Pomijaj firmy deweloperskie, agencje nieruchomosci i przypadkowe wyniki niepasujace do segmentu.\n\n"
         "Zwroc WYLACZNIE poprawny JSON zgodny z ponizszym schematem. "
         "Nie uzywaj markdown, nie dodawaj ```json, nie dodawaj komentarzy ani tekstu przed lub po JSON.\n\n"
         f"Schemat JSON:\n{schema}"

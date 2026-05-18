@@ -12,6 +12,7 @@ DEFAULT_SEARCH_DEPTH = os.getenv("TAVILY_SEARCH_DEPTH", "advanced")
 SEARCH_ENDPOINT = "https://api.tavily.com/search"
 EMAIL_RE = re.compile(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", re.IGNORECASE)
 PHONE_RE = re.compile(r"(?:\+?48[\s-]?)?(?:\(?\d{2}\)?[\s-]?)?\d{3}[\s-]?\d{2,3}[\s-]?\d{2,3}")
+NIP_RE = re.compile(r"\bNIP[:\s-]*(\d[\d\s-]{8,16}\d)\b", re.IGNORECASE)
 ADDRESS_PATTERNS = [
     re.compile(r"((?:ul\.|ulica|al\.|aleja|pl\.|plac|os\.|osiedle)\s+[^\n,]{3,120}(?:,\s*\d{2}-\d{3}\s+[^\n,]{2,80})?)", re.IGNORECASE),
     re.compile(r"(\d{2}-\d{3}\s+[^\n,]{2,80},\s*(?:ul\.|ulica|al\.|aleja|pl\.|plac|os\.|osiedle)\s+[^\n,]{3,120})", re.IGNORECASE),
@@ -56,6 +57,7 @@ def _build_query(search_goal: str, city: str, district: str, extra_instructions:
     if district.strip():
         parts.append(district.strip())
     query = " ".join(part for part in parts if part)
+    query = f"{query} NIP KRS REGON".strip()
     if extra_instructions.strip():
         query = f"{query}. {extra_instructions.strip()}"
     return query.strip()
@@ -76,6 +78,11 @@ def _extract_candidate(result: dict, district_hint: str) -> dict | None:
     phone_match = PHONE_RE.search(merged)
     telephone = _normalize_phone(phone_match.group(0)) if phone_match else ""
     address = _extract_first(ADDRESS_PATTERNS, merged)
+    nip = ""
+    nip_match = NIP_RE.search(merged)
+    if nip_match:
+        digits = re.sub(r"\D", "", nip_match.group(1))
+        nip = digits if len(digits) == 10 else ""
     reason_snippet = re.sub(r"\s+", " ", content or raw_content).strip()
     if len(reason_snippet) > 260:
         reason_snippet = f"{reason_snippet[:257]}..."
@@ -85,6 +92,7 @@ def _extract_candidate(result: dict, district_hint: str) -> dict | None:
         "nazwa": company_name,
         "dzielnica": district_hint.strip(),
         "adres": address,
+        "nip": nip,
         "email": email,
         "telefon": telephone,
         "powod": reason,
