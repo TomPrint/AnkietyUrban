@@ -68,6 +68,9 @@
       <div class="flex flex-wrap gap-3">
         <a class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" href="{% url 'scraper-gemini-import' %}">Nowe wyszukiwanie</a>
         <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{% url 'scraper-home' %}">Panel</a>
+        {% if show_export_csv %}
+        <a class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="{{ export_csv_url }}">Export CSV</a>
+        {% endif %}
       </div>
     </div>
 

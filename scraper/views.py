@@ -1,8 +1,12 @@
-﻿from django.contrib import messages
+import csv
+
+from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.core.paginator import Paginator
 from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import GeminiGenerateForm, LeadCandidateFilterForm, LeadCandidateRejectForm, TavilySearchForm
@@ -46,6 +50,8 @@ HEADER_COLUMNS = [
     ("status_sort", "Akcje"),
 ]
 
+EXPORTABLE_STATUSES = {LeadCandidate.STATUS_PENDING, LeadCandidate.STATUS_APPROVED, "all"}
+
 
 def _querystring_with(request, **updates):
     query = request.GET.copy()
@@ -62,6 +68,72 @@ def _build_ordering(sort_key: str, sort_dir: str) -> list[str]:
     fields = SORTABLE_COLUMNS.get(sort_key, SORTABLE_COLUMNS["created_at"])
     prefix = "-" if sort_dir == "desc" else ""
     return [f"{prefix}{field}" for field in fields]
+
+
+def _candidate_status_from_request(request):
+    status = request.GET.get("status", LeadCandidate.STATUS_PENDING)
+    if status not in {
+        LeadCandidate.STATUS_PENDING,
+        LeadCandidate.STATUS_APPROVED,
+        LeadCandidate.STATUS_REJECTED,
+        "all",
+    }:
+        status = LeadCandidate.STATUS_PENDING
+    return status
+
+
+def _candidate_filter_state(request):
+    filter_form = LeadCandidateFilterForm(request.GET or None)
+    filter_form.is_valid()
+    q = (filter_form.cleaned_data.get("q") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
+    source = (filter_form.cleaned_data.get("source") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
+    duplicate = (filter_form.cleaned_data.get("duplicate") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
+    return filter_form, q, source, duplicate
+
+
+def _candidate_queryset(status, q="", source="", duplicate="", sort="created_at", direction="desc"):
+    queryset = LeadCandidate.objects.select_related(
+        "duplicate_customer",
+        "duplicate_candidate",
+        "approved_customer",
+        "reviewed_by",
+    ).annotate(
+        duplicate_sort=Case(
+            When(Q(duplicate_customer__isnull=False) | Q(duplicate_candidate__isnull=False), then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+        status_sort=Case(
+            When(status=LeadCandidate.STATUS_PENDING, then=Value(1)),
+            When(status=LeadCandidate.STATUS_APPROVED, then=Value(2)),
+            When(status=LeadCandidate.STATUS_REJECTED, then=Value(3)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+    )
+
+    if status != "all":
+        return queryset.filter(status=status).order_by("-created_at", "-id")
+
+    if q:
+        queryset = queryset.filter(
+            Q(company_name__icontains=q)
+            | Q(district__icontains=q)
+            | Q(address__icontains=q)
+            | Q(nip__icontains=q)
+            | Q(email__icontains=q)
+            | Q(telephone__icontains=q)
+            | Q(reason__icontains=q)
+            | Q(website__icontains=q)
+            | Q(source__icontains=q)
+        )
+    if source:
+        queryset = queryset.filter(source=source)
+    if duplicate == "yes":
+        queryset = queryset.filter(Q(duplicate_customer__isnull=False) | Q(duplicate_candidate__isnull=False))
+    elif duplicate == "no":
+        queryset = queryset.filter(duplicate_customer__isnull=True, duplicate_candidate__isnull=True)
+    return queryset.order_by(*_build_ordering(sort, direction))
 
 
 @staff_required
@@ -176,20 +248,8 @@ def tavily_generate(request):
 
 @staff_required
 def candidate_list(request):
-    status = request.GET.get("status", LeadCandidate.STATUS_PENDING)
-    if status not in {
-        LeadCandidate.STATUS_PENDING,
-        LeadCandidate.STATUS_APPROVED,
-        LeadCandidate.STATUS_REJECTED,
-        "all",
-    }:
-        status = LeadCandidate.STATUS_PENDING
-
-    filter_form = LeadCandidateFilterForm(request.GET or None)
-    filter_form.is_valid()
-    q = (filter_form.cleaned_data.get("q") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
-    source = (filter_form.cleaned_data.get("source") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
-    duplicate = (filter_form.cleaned_data.get("duplicate") or "").strip() if hasattr(filter_form, "cleaned_data") else ""
+    status = _candidate_status_from_request(request)
+    filter_form, q, source, duplicate = _candidate_filter_state(request)
 
     sort = request.GET.get("sort", "created_at").strip()
     direction = request.GET.get("dir", "desc").strip()
@@ -198,48 +258,7 @@ def candidate_list(request):
     if direction not in {"asc", "desc"}:
         direction = "desc"
 
-    queryset = LeadCandidate.objects.select_related(
-        "duplicate_customer",
-        "duplicate_candidate",
-        "approved_customer",
-        "reviewed_by",
-    ).annotate(
-        duplicate_sort=Case(
-            When(Q(duplicate_customer__isnull=False) | Q(duplicate_candidate__isnull=False), then=Value(1)),
-            default=Value(0),
-            output_field=IntegerField(),
-        ),
-        status_sort=Case(
-            When(status=LeadCandidate.STATUS_PENDING, then=Value(1)),
-            When(status=LeadCandidate.STATUS_APPROVED, then=Value(2)),
-            When(status=LeadCandidate.STATUS_REJECTED, then=Value(3)),
-            default=Value(0),
-            output_field=IntegerField(),
-        ),
-    )
-
-    if status != "all":
-        queryset = queryset.filter(status=status).order_by("-created_at", "-id")
-    else:
-        if q:
-            queryset = queryset.filter(
-                Q(company_name__icontains=q)
-                | Q(district__icontains=q)
-                | Q(address__icontains=q)
-                | Q(nip__icontains=q)
-                | Q(email__icontains=q)
-                | Q(telephone__icontains=q)
-                | Q(reason__icontains=q)
-                | Q(website__icontains=q)
-                | Q(source__icontains=q)
-            )
-        if source:
-            queryset = queryset.filter(source=source)
-        if duplicate == "yes":
-            queryset = queryset.filter(Q(duplicate_customer__isnull=False) | Q(duplicate_candidate__isnull=False))
-        elif duplicate == "no":
-            queryset = queryset.filter(duplicate_customer__isnull=True, duplicate_candidate__isnull=True)
-        queryset = queryset.order_by(*_build_ordering(sort, direction))
+    queryset = _candidate_queryset(status, q=q, source=source, duplicate=duplicate, sort=sort, direction=direction)
 
     paginator = Paginator(queryset, 25)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -282,11 +301,92 @@ def candidate_list(request):
         "reject_form": LeadCandidateRejectForm(),
         "filter_form": filter_form,
         "show_filters": status == "all",
+        "show_export_csv": status in EXPORTABLE_STATUSES,
+        "export_csv_url": f"{reverse('scraper-candidates-export-csv')}{_querystring_with(request, status=status, page=None)}",
         "reset_filters_url": _querystring_with(request, status="all", q=None, source=None, duplicate=None, sort=None, dir=None, page=None),
         "previous_page_url": _querystring_with(request, page=page_obj.previous_page_number()) if page_obj.has_previous() else "",
         "next_page_url": _querystring_with(request, page=page_obj.next_page_number()) if page_obj.has_next() else "",
     }
     return render(request, "scraper/candidate_list.html", context)
+
+
+def _candidate_status_label(candidate):
+    if candidate.status == LeadCandidate.STATUS_PENDING:
+        return "Oczekuje"
+    if candidate.status == LeadCandidate.STATUS_APPROVED:
+        return "Zatwierdzony"
+    if candidate.status == LeadCandidate.STATUS_REJECTED:
+        return "Odrzucony"
+    return candidate.status
+
+
+def _candidate_duplicate_label(candidate):
+    if candidate.duplicate_customer:
+        return f"Istniejący klient: {candidate.duplicate_customer.company_name}"
+    if candidate.duplicate_candidate:
+        return f"Duplikat kandydata ({candidate.duplicate_candidate.source.title()}): {candidate.duplicate_candidate.company_name}"
+    return ""
+
+
+@staff_required
+def candidate_export_csv(request):
+    status = _candidate_status_from_request(request)
+    if status not in EXPORTABLE_STATUSES:
+        raise Http404("CSV export is not available for this status.")
+
+    filter_form, q, source, duplicate = _candidate_filter_state(request)
+    sort = request.GET.get("sort", "created_at").strip()
+    direction = request.GET.get("dir", "desc").strip()
+    if sort not in SORTABLE_COLUMNS:
+        sort = "created_at"
+    if direction not in {"asc", "desc"}:
+        direction = "desc"
+
+    queryset = _candidate_queryset(status, q=q, source=source, duplicate=duplicate, sort=sort, direction=direction)
+    filename_status = "wszyscy" if status == "all" else status
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="leady_{filename_status}.csv"'
+    response.write("\ufeff")
+
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(
+        [
+            "Nazwa",
+            "Źródło",
+            "Wyszukanie",
+            "Decyzja",
+            "Status",
+            "Lokalizacja",
+            "Adres",
+            "NIP",
+            "Email",
+            "Telefon",
+            "Powód",
+            "WWW",
+            "Duplikaty",
+            "Zatwierdzony klient",
+        ]
+    )
+    for candidate in queryset:
+        writer.writerow(
+            [
+                candidate.company_name,
+                candidate.source.title(),
+                candidate.created_at.strftime("%Y-%m-%d %H:%M") if candidate.created_at else "",
+                candidate.reviewed_at.strftime("%Y-%m-%d %H:%M") if candidate.reviewed_at else "",
+                _candidate_status_label(candidate),
+                candidate.district,
+                candidate.address,
+                candidate.nip,
+                candidate.email,
+                candidate.telephone,
+                candidate.reason,
+                candidate.website,
+                _candidate_duplicate_label(candidate),
+                candidate.approved_customer.company_name if candidate.approved_customer else "",
+            ]
+        )
+    return response
 
 
 @staff_required

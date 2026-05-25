@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 from .views import (
     candidate_approve,
     candidate_delete,
+    candidate_export_csv,
     candidate_list,
     candidate_reject,
     candidate_reopen,
@@ -19,6 +20,7 @@ urlpatterns = [
     path("scraper/gemini-generate/", gemini_generate, name="scraper-gemini-generate"),
     path("scraper/tavily-generate/", tavily_generate, name="scraper-tavily-generate"),
     path("scraper/candidates/", candidate_list, name="scraper-candidates"),
+    path("scraper/candidates/export.csv", candidate_export_csv, name="scraper-candidates-export-csv"),
     path("scraper/candidates/<int:candidate_id>/approve/", candidate_approve, name="scraper-candidate-approve"),
     path("scraper/candidates/<int:candidate_id>/reject/", candidate_reject, name="scraper-candidate-reject"),
     path("scraper/candidates/<int:candidate_id>/reopen/", candidate_reopen, name="scraper-candidate-reopen"),

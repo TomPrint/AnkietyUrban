@@ -390,5 +390,37 @@ class ScraperLeadCandidateTests(TestCase):
         self.assertEqual(names, ["Chomik Beta"])
         self.assertEqual(response.context["header_columns"][0]["key"], "company_name")
 
+    def test_candidate_export_csv_available_for_expected_statuses_only(self):
+        LeadCandidate.objects.create(
+            source="gemini",
+            company_name="Eksport Alfa",
+            normalized_name="EKSPORT ALFA",
+            status=LeadCandidate.STATUS_PENDING,
+            nip="1234567890",
+            email="alfa@example.com",
+        )
+        LeadCandidate.objects.create(
+            source="tavily",
+            company_name="Eksport Beta",
+            normalized_name="EKSPORT BETA",
+            status=LeadCandidate.STATUS_REJECTED,
+        )
+
+        response = self.client.get(reverse("scraper-candidates-export-csv"), {"status": "pending"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("Nazwa;Źródło;Wyszukanie;Decyzja;Status;Lokalizacja;Adres;NIP;Email;Telefon;Powód;WWW;Duplikaty;Zatwierdzony klient", content)
+        self.assertIn("Eksport Alfa;Gemini;", content)
+        self.assertIn(";1234567890;alfa@example.com;", content)
+        self.assertNotIn("Eksport Beta", content)
+
+        rejected_list = self.client.get(reverse("scraper-candidates"), {"status": "rejected"})
+        self.assertNotContains(rejected_list, "Export CSV")
+
+        rejected_export = self.client.get(reverse("scraper-candidates-export-csv"), {"status": "rejected"})
+        self.assertEqual(rejected_export.status_code, 404)
+
 
 
